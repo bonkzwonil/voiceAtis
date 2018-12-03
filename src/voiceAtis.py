@@ -10,7 +10,19 @@ import os
 import re
 from metar.Metar import Metar
 import urllib.request
+import gzip
+import pyttsx3
 
+
+
+
+def getWhazzupText():
+    urllib.request.urlretrieve('http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz', 'whazzup.txt.gz')
+    with gzip.open('whazzup.txt.gz', 'rb') as f:
+        whazzupText = f.read().decode('iso-8859-15')
+    os.remove('whazzup.txt.gz')
+    
+    return whazzupText
 
 def parseRawRwy1(atisRaw):
     strSplit = atisRaw[3].split(' / ')
@@ -90,7 +102,7 @@ def parseVoiceRwy(rwyInformation):
     # ARR.
     rwyVoice = '{}Arrival runway '.format(rwyVoice)
     for arr in rwyInformation[0]:
-        if arr[1:3].count(None) == 3:
+        if arr[1:4].count(None) == 3:
             rwyVoice = '{}{} and '.format(rwyVoice,parseVoiceNumber(arr[0]))
         else:
             for si in arr[1:4]:
@@ -101,7 +113,7 @@ def parseVoiceRwy(rwyInformation):
     # DEP.
     rwyVoice = '{} Departure runway '.format(rwyVoice)
     for dep in rwyInformation[0]:
-        if dep[1:3].count(None) == 3:
+        if dep[1:4].count(None) == 3:
             rwyVoice = '{}{} and '.format(rwyVoice,parseVoiceNumber(dep[0]))
         else:
             for si in dep[1:4]:
@@ -119,70 +131,85 @@ def parseVoiceRwy(rwyInformation):
 # def parseVoiceRwy(atisRaw):
 #     pass
 
-STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
+if __name__ == '__main__':
+    # Constants.
+    ENGLISH_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
+#     ENGLISH_VOICE = u'\\HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_DE-DE_HEDDA_11.0'
+    STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
 
-#TODO: Get whazzup file automatically
-# urllib.request.urlretrieve('http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz', 'whazzup.txt.gz')  
-
-#TODO: Add FSUIPC code to get ATIS frequency
- 
-# station = 'LFMD'
-station = 'EDDM'
-# station = 'LIBR'
-# station = 'LIRF'
-
-# Read whazzup file
-with open(os.path.join(os.path.dirname(os.getcwd()),'whazzup_EDDM.txt')) as whazzupFile:
-    whazzupText = whazzupFile.read()
+    #TODO: Get whazzup file automatically
+    
+    
+    #TODO: Add FSUIPC code to get ATIS frequency
      
-# Find an open station
-for st in STATION_SUFFIXES:
-    matchObj = re.search('{}\w*?_{}'.format(station,st),whazzupText)
+    # station = 'LFMD'
+    station = 'EDDM'
+    # station = 'LIBR'
+    # station = 'LIRF'
+#     station = 'EDDS'
     
-    if matchObj is not None:
-        break
-
-if matchObj is None:
-    raise(Exception,'No station found')
-
-# Extract ATIS.
-lineStart = matchObj.start()
-lineEnd = whazzupText.find('\n',matchObj.start())
-stationInfo = whazzupText[lineStart:lineEnd].split(':')
-ivac2 = bool(int(stationInfo[39][0]) - 1)
-atisRaw = stationInfo[35].split('^ยง')
-
-# # Parse ATIS.
-if not ivac2:
-    # Information.
-    informationVoice = parseVoiceInformation(atisRaw[1])
+    # # Read whazzup file
+    # with open(os.path.join(os.path.dirname(os.getcwd()),'whazzup_EDDM.txt')) as whazzupFile:
+    #     whazzupText = whazzupFile.read()
     
-    # Metar.
-    metar = Metar(atisRaw[2].strip(),strict=False)
+    whazzupText = getWhazzupText()
     
-    # Runways / TRL / TA
-    rwyInformation = parseRawRwy1(atisRaw)
-    rwyVoice = parseVoiceRwy(rwyInformation)
+    # Find an open station
+    for st in STATION_SUFFIXES:
+        matchObj = re.search('{}\w*?_{}'.format(station,st),whazzupText)
+        
+        if matchObj is not None:
+            break
+    
+    if matchObj is None:
+        raise(Exception,'No station found')
+    
+    # Extract ATIS.
+    lineStart = matchObj.start()
+    lineEnd = whazzupText.find('\n',matchObj.start())
+    stationInfo = whazzupText[lineStart:lineEnd].split(':')
+    ivac2 = bool(int(stationInfo[39][0]) - 1)
+    atisRaw = stationInfo[35].split('^ง')
+    
+    # # Parse ATIS.
+    if not ivac2:
+        # Information.
+        informationVoice = parseVoiceInformation(atisRaw[1])
+        
+        # Metar.
+        metar = Metar(atisRaw[2].strip(),strict=False)
+        
+        # Runways / TRL / TA
+        rwyInformation = parseRawRwy1(atisRaw)
+        rwyVoice = parseVoiceRwy(rwyInformation)
+        
+        
+        
+    
+    # Parse voice.
+    # informationVoice = 
+    metarVoice = parseVoiceMetar(metar)
+    
+    atisVoice = '{}. {}. {}.'.format(informationVoice,metarVoice,rwyVoice)
+    
+    
+    print(atisRaw)
+    print(atisVoice)
+    
+    engine = pyttsx3.init()
+    engine.setProperty('voice', ENGLISH_VOICE)
+    print(engine.getProperty('rate'))
+    engine.setProperty('rate', 140)
+    
+    
+    engine.say(atisVoice)
+    engine.runAndWait()
+     
+     
+    # obs = Metar('EDDS 030920Z 22007KT 170V260 9999 VCSH FEW010 SCT035TCU 13/11 Q1008 NOSIG')
     
     
     
-
-# Parse voice.
-# informationVoice = 
-metarVoice = parseVoiceMetar(metar)
-
-atisVoice = '{}. {}. {}.'.format(informationVoice,metarVoice,rwyVoice)
-
-
-print(atisRaw)
-print(atisVoice)
- 
- 
- 
-# obs = Metar('EDDS 030920Z 22007KT 170V260 9999 VCSH FEW010 SCT035TCU 13/11 Q1008 NOSIG')
-
-
-
-
-
-pass
+    
+    
+    pass
