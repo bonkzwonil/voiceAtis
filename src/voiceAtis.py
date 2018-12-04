@@ -1,10 +1,32 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-15 -*-
-'''
-Created on 03.12.2018
+"""
+voiceAtis - Reads an ATIS from IVAO using voice generation
+Copyright (C) 2018  Oliver Clemens
 
-@author: clemeno
-'''
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+=========================================================================
+version 0.0.1 - 25.05.2017
+- first version for testing purposes
+
+=========================================================================
+roadmap
+- running version
+
+=========================================================================
+"""
 
 import os
 import re
@@ -27,8 +49,6 @@ class VoiceAtis(object):
     ENGLISH_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
     GERMAN_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_DE-DE_HEDDA_11.0'
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
-    
-    
     
     
     def __init__(self):
