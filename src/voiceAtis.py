@@ -18,11 +18,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 =========================================================================
-version 0.0.1 - 25.05.2017
+CHANGELOG
+
+version 0.0.1 - 03.12.2018
 - first version for testing purposes
 
 =========================================================================
-roadmap
+ROADMAP
+
 - running version
 
 =========================================================================
@@ -35,8 +38,9 @@ import urllib.request
 import gzip
 # import pyttsx3
 
-
-
+## Sperate Numbers with whitespace
+# Needed for voice generation to be pronounced properly.
+# Example: 250 > 2 5 0
 def parseVoiceNumber(number):
         numberSep = ''
         for k in number:
@@ -50,7 +54,7 @@ class VoiceAtis(object):
     GERMAN_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_DE-DE_HEDDA_11.0'
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
     
-    
+    ## Setup the VoiceAtis object.
     def __init__(self):
         #TODO: Add FSUIPC code to get ATIS frequency
          
@@ -62,7 +66,7 @@ class VoiceAtis(object):
         
         # Read whazzup file
 #         self.whazzupText = self.getWhazzupText()
-        self.whazzupText = self.getWhazzupTextDebug()
+        self.whazzupText = self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_EDDM.txt')
         
         # Parse ATIS.
         if not self.ivac2:
@@ -87,17 +91,20 @@ class VoiceAtis(object):
         
 #         self.readVoice()
     
-
+    ## Downloads and reads the whazzup from IVAO 
     def getWhazzupText(self):
         urllib.request.urlretrieve('http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz', 'whazzup.txt.gz')
         with gzip.open('whazzup.txt.gz', 'rb') as f:
             self.whazzupText = f.read().decode('iso-8859-15')
         os.remove('whazzup.txt.gz')
     
-    def getWhazzupTextDebug(self):
-        with open(os.path.join(os.path.dirname(os.getcwd()),'whazzup_EDDM.txt')) as whazzupFile:
+    ## Reads a whazzup file on disk.
+    # For debug purposes.
+    def getWhazzupTextDebug(self,whazzupPath):
+        with open(whazzupPath) as whazzupFile:
             self.whazzupText = whazzupFile.read()
     
+    ## Find a station of the airport and read the ATIS string.
     def parseWhazzupText(self):
         # Find an open station
         for st in self.STATION_SUFFIXES:
@@ -116,9 +123,11 @@ class VoiceAtis(object):
         self.ivac2 = bool(int(stationInfo[39][0]) - 1)
         self.atisRaw = stationInfo[35].split('^§')
     
+    ## Parse runway and transition data.
+    # Get active runways for arrival and departure.
+    # Get transistion level and altitude.
     def parseRawRwy1(self,atisRaw):
         strSplit = atisRaw[3].split(' / ')
-        #'ARR RWY 26L/R / DEP RWY 26L/R / TRL FL70 / TA 5000FT'
         
         # ARR.
         arr = strSplit[0].replace('ARR RWY ','').strip().split(' ')
@@ -154,6 +163,7 @@ class VoiceAtis(object):
         
         return [arrRwys,depRwys,trl,ta]
     
+    # Generate a string of the metar for voice generation.
     def parseVoiceMetar(self):
         metarVoice = 'Met report'
         
@@ -172,7 +182,7 @@ class VoiceAtis(object):
         
         return metarVoice
     
-    
+    # Generate a string of the information identifier for voice generation.
     def parseVoiceInformation(self,atisRaw):
         timeMatch = re.search(r'\d{4}z',atisRaw)
         startInd = timeMatch.start()
@@ -180,7 +190,8 @@ class VoiceAtis(object):
         timeStr = parseVoiceNumber(atisRaw[startInd:endInd])
         
         return '{} {} Zulu'.format(atisRaw[0:startInd-1],timeStr)
-        
+    
+    # Generate a string of the runway information for voice generation.
     def parseVoiceRwy(self,rwyInformation):
         rwyVoice = ''
         
@@ -208,7 +219,7 @@ class VoiceAtis(object):
         
         return rwyVoice
     
-    
+    # Reads the atis string using voice generation.
     def readVoice(self):
         engine = pyttsx3.init()
         
