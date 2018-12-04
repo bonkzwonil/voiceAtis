@@ -1,52 +1,82 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-15 -*-
-"""
-voiceAtis - Reads an ATIS from IVAO using voice generation
-Copyright (C) 2018  Oliver Clemens
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-=========================================================================
-CHANGELOG
-
-version 0.0.1 - 03.12.2018
-- first version for testing purposes
-
-=========================================================================
-ROADMAP
-
-- running version
-
-=========================================================================
-"""
+#==============================================================================
+# voiceAtis - Reads an ATIS from IVAO using voice generation
+# Copyright (C) 2018  Oliver Clemens
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# 
+#==============================================================================
+# CHANGELOG
+# 
+# version 0.0.1 - 03.12.2018
+# - first version for testing purposes
+# - not runnable
+# 
+#==============================================================================
+# ROADMAP
+# 
+# - running version
+# 
+#==============================================================================
 
 import os
 import re
+import time
 from metar.Metar import Metar
 import urllib.request
 import gzip
-# import pyttsx3
+try:
+    import pyttsx3
+except ImportError:
+    print('No voice')
 
 ## Sperate Numbers with whitespace
 # Needed for voice generation to be pronounced properly.
 # Example: 250 > 2 5 0
-def parseVoiceNumber(number):
-        numberSep = ''
-        for k in number:
-            numberSep = '{}{} '.format(numberSep,k)
-        return numberSep.strip()
+def parseVoiceInt(number):
+    numberSep = ''
+    for k in number:
+        numberSep = '{}{} '.format(numberSep,k)
+    return numberSep.strip()
 
+## Sperate Numbers with whitespace and replace . by decimal'
+def parseVoiceFloat(number):    
+    numberSep = ''
+    for k in number:
+        if k != '.' and k != ',':
+            numberSep = '{}{} '.format(numberSep,k)
+        else:
+            numberSep = '{}decimal '.format(numberSep,k)
+    return numberSep.strip()
+
+def parseVoiceString(string):
+    pattern = re.compile('\d+[,.]\d+')
+    match = pattern.search(string)
+    while match is not None:
+        replaceStr = parseVoiceFloat(string[match.start():match.end()])
+        string = '{}{}{}'.format(string[0:match.start()],replaceStr,string[match.end():])
+        match = pattern.search(string)
+        
+    pattern = re.compile('\d\d+')
+    match = pattern.search(string)
+    while match is not None:
+        replaceStr = parseVoiceInt(string[match.start():match.end()])
+        string = '{}{}{}'.format(string[0:match.start()],replaceStr,string[match.end():])
+        match = pattern.search(string)
+        
+    return string
 
 class VoiceAtis(object):
     
@@ -54,42 +84,68 @@ class VoiceAtis(object):
     GERMAN_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_DE-DE_HEDDA_11.0'
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
     
+    SPEECH_RATE = 140
+    
+    STRICT_METAR = True
+    
+    SLEEP_TIME = 60
+    
     ## Setup the VoiceAtis object.
+    # Also starts the voice generation loop.
     def __init__(self):
         #TODO: Add FSUIPC code to get ATIS frequency
-         
-#         self.airport = 'LFMD'
-        self.airport = 'EDDM'
-#         self.airport = 'LIBR'
-#         self.airport = 'LIRF'
-#         self.airport = 'EDDS'
         
-        # Read whazzup file
-#         self.whazzupText = self.getWhazzupText()
-        self.whazzupText = self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_EDDM.txt')
+        self.currentlyReading = [None,None]
         
-        # Parse ATIS.
-        if not self.ivac2:
-            # Information.
-            self.informationVoice = self.parseVoiceInformation(self.atisRaw[1])
+        # Start infinite loop.
+        while True:
             
-            # Metar.
-            self.metar = Metar(self.atisRaw[2].strip(),strict=False)
+            # Get ATIS frequency and associated airport.
             
-            # Runways / TRL / TA
-            self.rwyInformation = self.parseRawRwy1(self.atisRaw)
-            self.rwyVoice = self.parseVoiceRwy(self.rwyInformation)
-        
-        # Parse voice.
-        self.metarVoice = self.parseVoiceMetar()
-        
-        atisVoice = '{}. {}. {}.'.format(self.informationVoice,self.metarVoice,self.rwyVoice)
-        
-        
-        print(self.atisRaw)
-        print(atisVoice)
-        
-#         self.readVoice()
+#             self.airport = 'LFMD'
+#             self.airport = 'EDDM' # M
+#             self.airport = 'LIBR'
+#             self.airport = 'LIRF'
+#             self.airport = 'EDDS'
+#             self.airport = 'LHKE'
+            self.airport = 'SCQP' # M
+            
+#             userMetar = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
+            userMetar = 'EDDL 212150Z 06007KT 9999 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+            
+            # Read whazzup file
+#             self.whazzupText = self.getWhazzupText()
+            self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_EDDM.txt')
+            
+            self.parseWhazzupText()
+            
+            # Parse ATIS.
+            if not self.ivac2:
+                # Information.
+                self.informationVoice = self.parseVoiceInformation()
+                
+                # Metar.
+#                 self.metar = Metar(self.atisRaw[2].strip(),strict=self.STRICT_METAR)
+                self.metar = Metar(userMetar,strict=self.STRICT_METAR)
+                
+                # Runways / TRL / TA
+                self.parseRawRwy1()
+                self.parseVoiceRwy()
+            
+                # Parse voice.
+                self.parseVoiceMetar()
+            
+                atisVoice = '{}. {}. {}'.format(self.informationVoice,self.metarVoice,self.rwyVoice)
+                
+                print(self.atisRaw)
+                print(atisVoice)
+            
+#             self.readVoice()
+            
+            # Wait some time for performance reasons.
+            return
+            time.sleep(self.SLEEP_TIME)
+    
     
     ## Downloads and reads the whazzup from IVAO 
     def getWhazzupText(self):
@@ -103,12 +159,13 @@ class VoiceAtis(object):
     def getWhazzupTextDebug(self,whazzupPath):
         with open(whazzupPath) as whazzupFile:
             self.whazzupText = whazzupFile.read()
+        pass
     
     ## Find a station of the airport and read the ATIS string.
     def parseWhazzupText(self):
         # Find an open station
         for st in self.STATION_SUFFIXES:
-            matchObj = re.search('{}\w*?_{}'.format(self.station,st),self.whazzupText)
+            matchObj = re.search('{}\w*?_{}'.format(self.airport,st),self.whazzupText)
             
             if matchObj is not None:
                 break
@@ -126,117 +183,187 @@ class VoiceAtis(object):
     ## Parse runway and transition data.
     # Get active runways for arrival and departure.
     # Get transistion level and altitude.
-    def parseRawRwy1(self,atisRaw):
-        strSplit = atisRaw[3].split(' / ')
+    def parseRawRwy1(self):
+        strSplit = self.atisRaw[3].split(' / ')
         
-        # ARR.
-        arr = strSplit[0].replace('ARR RWY ','').strip().split(' ')
-        arrRwys = []
-        for rwy in arr:
-            curRwy = [rwy[0:2],None,None,None]
-            if 'L' in rwy:
-                curRwy[1] = 'Left'
-            if 'C' in rwy:
-                curRwy[2] = 'Center'
-            if 'R' in rwy:
-                curRwy[3] = 'Right'
-            arrRwys.append(curRwy)
+        self.rwyInformation = [None,None,None,None]
+        
+        for sp in strSplit:
+            if sp[0:3] == 'ARR':
+                arr = sp.replace('ARR RWY ','').strip().split(' ')
+                self.rwyInformation[0] = []
+                for rwy in arr:
+                    curRwy = [rwy[0:2],None,None,None]
+                    if 'L' in rwy:
+                        curRwy[1] = 'Left'
+                    if 'C' in rwy:
+                        curRwy[2] = 'Center'
+                    if 'R' in rwy:
+                        curRwy[3] = 'Right'
+                    self.rwyInformation[0].append(curRwy)
             
-        # DEP.
-        dep = strSplit[1].replace('DEP RWY ','').strip().split(' ')
-        depRwys = []
-        for rwy in dep:
-            curRwy = [rwy[0:2],None,None,None]
-            if 'L' in rwy:
-                curRwy[1] = 'Left'
-            if 'C' in rwy:
-                curRwy[2] = 'Center'
-            if 'R' in rwy:
-                curRwy[3] = 'Right'
-            depRwys.append(curRwy)
-            
-        # TRL
-        trl = strSplit[2].strip().replace('TRL FL','')
-        
-        # TA
-        ta = strSplit[3].strip().replace('TA ','').replace('FT','')
-        
-        return [arrRwys,depRwys,trl,ta]
+            elif sp[0:3] == 'DEP':
+                # DEP.
+                dep = strSplit[1].replace('DEP RWY ','').strip().split(' ')
+                self.rwyInformation[1] = []
+                for rwy in dep:
+                    curRwy = [rwy[0:2],None,None,None]
+                    if 'L' in rwy:
+                        curRwy[1] = 'Left'
+                    if 'C' in rwy:
+                        curRwy[2] = 'Center'
+                    if 'R' in rwy:
+                        curRwy[3] = 'Right'
+                    self.rwyInformation[1].append(curRwy)
+                    
+            elif sp[0:3] == 'TRL':
+                self.rwyInformation[2] = sp.strip().replace('TRL FL','')
+                
+            elif sp[0:2] == 'TA':
+                self.rwyInformation[3] = sp.strip().replace('TA ','').replace('FT','')
+
     
     # Generate a string of the metar for voice generation.
     def parseVoiceMetar(self):
-        metarVoice = 'Met report'
-        
+        self.metarVoice = 'Met report'
+        #TODO: Test with many possible METARs
         
         # Wind
-        windDirStr = '{:03d}'.format(int(self.metar.wind_dir._degrees))
-        
-        windSpeed = parseVoiceNumber(str(int(self.metar.wind_speed._value)))
-        
-        if int(self.metar.wind_speed._value) != 1:
-            metarVoice = ('{}, wind {} {} {} degrees, {} knots').format(metarVoice,windDirStr[0],windDirStr[1],windDirStr[2],windSpeed)
+        #TODO: Parse numbers
+        #TODO: test variable wind
+        #TODO: test gusts
+        windSpeedStr = self.metar.wind_speed.string()
+        if windSpeedStr != '0 knots':
+            self.metarVoice = ('{}, wind {}, {}').format(self.metarVoice,parseVoiceString(self.metar.wind_dir.string()),parseVoiceString(self.metar.wind_speed.string()))
         else:
-            metarVoice = ('{}, wind {} {} {} degrees, {} knot').format(metarVoice,windDirStr[0],windDirStr[1],windDirStr[2],windSpeed)
+            self.metarVoice = ('{}, wind calm').format(self.metarVoice,self.metar.wind_dir.string(),self.metar.wind_speed.string())
         
         # Visibility.
+        #TODO: test directions
+        self.metarVoice = ('{}, visibility {}').format(self.metarVoice,self.metar.vis.string())
         
-        return metarVoice
+        # runway visual range
+        if self.metar.runway_visual_range():
+            self.metarVoice = ('{}, visual range {}').format(self.metarVoice,self.metar.runway_visual_range())
+            #TODO: test multiple runways visibility
+        
+        # weather phenomena
+        if self.metar.weather:
+            self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.present_weather())
+        
+        # clouds
+        self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.sky_conditions(',').replace(',',', '))
+        
+        # runway condition
+        #TODO: Implement runway conditions
+        
+        # temperature
+        tempValue = parseVoiceInt(str(int(self.metar.temp._value)))
+        if self.metar.temp._units == 'C':
+            tempUnit = 'degree Celsius'
+        else:
+            tempUnit = 'degree Fahrenheit'
+            
+        self.metarVoice = '{}, temperature {} {}'.format(self.metarVoice,tempValue,tempUnit)
+        
+        # dew point
+        dewptValue = parseVoiceInt(str(int(self.metar.dewpt._value)))
+        if self.metar.dewpt._units == 'C':
+            dewptUnit = 'degree Celsius'
+        else:
+            dewptUnit = 'degree Fahrenheit'
+            
+        self.metarVoice = '{}, dew point {} {}'.format(self.metarVoice,dewptValue,dewptUnit)
+        
+        # QNH
+        #TODO: implement inHg
+        if self.metar.press._units == 'MB':
+            pressValue = parseVoiceInt(str(int(self.metar.press._value)))
+            self.metarVoice = '{}, Q N H {} hectopascal'.format(self.metarVoice,pressValue)
+        else:
+            self.metarVoice = '{}, Altimeter {}'.format(self.metarVoice,parseVoiceString(self.metar.press.string()))
+        
     
     # Generate a string of the information identifier for voice generation.
-    def parseVoiceInformation(self,atisRaw):
-        timeMatch = re.search(r'\d{4}z',atisRaw)
+    def parseVoiceInformation(self):
+        timeMatch = re.search(r'\d{4}z',self.atisRaw[1])
         startInd = timeMatch.start()
         endInd = timeMatch.end()- 1
-        timeStr = parseVoiceNumber(atisRaw[startInd:endInd])
+        timeStr = parseVoiceInt(self.atisRaw[1][startInd:endInd])
         
-        return '{} {} Zulu'.format(atisRaw[0:startInd-1],timeStr)
+        return '{} {} Zulu'.format(self.atisRaw[1][0:startInd-1],timeStr)
     
     # Generate a string of the runway information for voice generation.
-    def parseVoiceRwy(self,rwyInformation):
-        rwyVoice = ''
+    def parseVoiceRwy(self):
+        self.rwyVoice = ''
         
         # ARR.
-        rwyVoice = '{}Arrival runway '.format(rwyVoice)
-        for arr in rwyInformation[0]:
-            if arr[1:4].count(None) == 3:
-                rwyVoice = '{}{} and '.format(rwyVoice,parseVoiceNumber(arr[0]))
-            else:
-                for si in arr[1:4]:
-                    if si is not None:
-                        rwyVoice = '{}{} {} and '.format(rwyVoice,parseVoiceNumber(arr[0]),si)
-        rwyVoice = rwyVoice[0:-5]
+        if self.rwyInformation[0] is not None:
+            self.rwyVoice = '{}Arrival runway '.format(self.rwyVoice)
+            for arr in self.rwyInformation[0]:
+                if arr[1:4].count(None) == 3:
+                    self.rwyVoice = '{}{} and '.format(self.rwyVoice,parseVoiceInt(arr[0]))
+                else:
+                    for si in arr[1:4]:
+                        if si is not None:
+                            self.rwyVoice = '{}{} {} and '.format(self.rwyVoice,parseVoiceInt(arr[0]),si)
+            self.rwyVoice = '{},'.format(self.rwyVoice[0:-5])
         
         # DEP.
-        rwyVoice = '{} Departure runway '.format(rwyVoice)
-        for dep in rwyInformation[0]:
-            if dep[1:4].count(None) == 3:
-                rwyVoice = '{}{} and '.format(rwyVoice,parseVoiceNumber(dep[0]))
-            else:
-                for si in dep[1:4]:
-                    if si is not None:
-                        rwyVoice = '{}{} {} and '.format(rwyVoice,parseVoiceNumber(dep[0]),si)
-        rwyVoice = rwyVoice[0:-5]
+        if self.rwyInformation[1] is not None:
+            self.rwyVoice = '{} Departure runway '.format(self.rwyVoice)
+            for dep in self.rwyInformation[1]:
+                if dep[1:4].count(None) == 3:
+                    self.rwyVoice = '{}{} and '.format(self.rwyVoice,parseVoiceInt(dep[0]))
+                else:
+                    for si in dep[1:4]:
+                        if si is not None:
+                            self.rwyVoice = '{}{} {} and '.format(self.rwyVoice,parseVoiceInt(dep[0]),si)
+            self.rwyVoice = '{}. '.format(self.rwyVoice[0:-5])
         
-        return rwyVoice
+        # TRL
+        if self.rwyInformation[2] is not None:
+            self.rwyVoice = '{}Transition level {}, '.format(self.rwyVoice,parseVoiceInt(self.rwyInformation[2]))
+        
+        # TA
+        if self.rwyInformation[3] is not None:
+            self.rwyVoice = '{}Transition altitude {} feet.'.format(self.rwyVoice,self.rwyInformation[3])
+            
     
     # Reads the atis string using voice generation.
     def readVoice(self):
-        engine = pyttsx3.init()
+        self.engine = pyttsx3.init()
+        
+        # Set properties currently reading
+        self.currentlyReading[0] = self.airport
+        self.currentlyReading[1] = self.frequency
         
         # Set properties.
-        engine.setProperty('voice', self.ENGLISH_VOICE)
-        print(engine.getProperty('rate'))
-        engine.setProperty('rate', 140)
+        self.engine.setProperty('voice', self.ENGLISH_VOICE)
+        self.engine.setProperty('rate', self.SPEECH_RATE)
         
         # Start listener and loop.
-        engine.connect('started-word', self.onWord)
-        engine.say(self.atisVoice)
-        engine.runAndWait()
+        self.engine.connect('started-word', self.onWord)
+        self.engine.say(self.atisVoice)
+        self.engine.runAndWait()
     
-    def onWord(self):
-        pass
+    def onWord(self, name, location, length):  # @UnusedVariable
+        self.getCurrentFrequency()
+        if self.frequency != self.currentlyReading[1] or not self.com2:
+            self.engine.stop()
+            self.currentlyReading = [None,None]
+    
+    ## Reads current frequency and COM2 status.
+    def getCurrentFrequency(self):
+        #TODO: Implement pyuipc
+        self.frequency = 118.8
+        self.com2 = True
         
 
 if __name__ == '__main__':
+    
+#     string = 'foo 123 bar 234 foo 1.23 bar 30.04'
+#     print(parseVoiceString(string))
+    
     voiceAtis = VoiceAtis()
     pass
