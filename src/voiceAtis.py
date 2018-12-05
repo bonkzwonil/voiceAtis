@@ -22,6 +22,7 @@
 #
 # version 0.0.2 - 05.12.2018
 # - implemented wind gusts and variable wind
+# - port to python2 (due to pyuipc)
 # - added pyuipc (untested)
 # - added logic to get airport
 # 
@@ -35,6 +36,7 @@
 # ROADMAP
 # 
 # - running version
+# - random start
 # - get ivac2 atis running
 # 
 #==============================================================================
@@ -42,15 +44,15 @@
 import os
 import re
 import time
-import urllib.request
+import urllib
 import gzip
 
 try:
-    import pyttsx3
-    pyttsx3Imported = True
+    import pyttsx
+    pyttsxImported = True
 except ImportError:
     print('No voice')
-    pyttsx3Imported = False
+    pyttsxImported = False
 try:
     import pyuipc  # @UnusedImport
     pyuipcImported = True
@@ -72,7 +74,10 @@ def parseVoiceInt(number):
     
     numberSep = ''
     for k in number:
-        numberSep = '{}{} '.format(numberSep,k)
+        if k != '-':
+            numberSep = '{}{} '.format(numberSep,k)
+        else:
+            numberSep = '{}minus '.format(numberSep)
     return numberSep.strip()
 
 ## Sperate Numbers with whitespace and replace . by decimal'
@@ -82,10 +87,12 @@ def parseVoiceFloat(number):
     
     numberSep = ''
     for k in number:
-        if k != '.' and k != ',':
+        if k != '.' and k != ',' and k!= '-':
             numberSep = '{}{} '.format(numberSep,k)
+        elif k != '-':
+            numberSep = '{}decimal '.format(numberSep)
         else:
-            numberSep = '{}decimal '.format(numberSep,k)
+            numberSep = '{}minus '.format(numberSep)
     return numberSep.strip()
 
 def parseVoiceString(string):
@@ -111,42 +118,50 @@ class VoiceAtis(object):
     GERMAN_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_DE-DE_HEDDA_11.0'
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
     
-    SPEECH_RATE = 140
+    SPEECH_RATE = 150
     
     #TODO: reduce to normal time when finished debug
-    SLEEP_TIME = 30         # s
+    SLEEP_TIME = 3         # s
     
     DISTANCE_THRESHOLD = 30 # nm
     
     OFFSETS = [(0x034E,'H'),    # com1freq
                (0x3118,'H'),    # com2freq
                (0x3122,'b'),    # radioActive
-               (0x6D90,'f'),    # lat
-               (0x6D98,'f'),    # lon
+               (0x0560,'l'),
+               (0x0568,'l'),
               ]
     
-    DEBUG = True
+    DEBUG = False
 #     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
     COM1_FREQUENCY_DEBUG = 199.99
-    COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
-    LAT_DEBUG = 48.353
-    LON_DEBUG = 11.786
+    COM2_FREQUENCY_DEBUG = 126.125 # EDDS_ATIS
+    LAT_DEBUG = 48.687
+    LON_DEBUG = 9.205
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
     
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
     def __init__(self):
-        #TODO: Add FSUIPC code to get ATIS frequency
+        #TODO: Upload airports.info
+        #TODO: Insert useful console output
+        #TODO: Create installation package
+        #TODO: Test switching properly
+        
+        print(time.strftime('%H:%M:%S - voiceAtis started.'))
         
         self.srcDir = os.path.dirname(os.path.abspath(__file__))
         
         self.currentlyReading = [None,None]
         
+        # Establish pyuipc connection
         if pyuipcImported:
             self.pyuipcConnection = pyuipc.open(0)
             self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
+            print(time.strftime('%H:%M:%S - FSUIPC connection established.'))
         else:
             self.pyuipcConnection = None
+            print(time.strftime('%H:%M:%S - Using voiceAtis without FSUIPC'))
             
         self.getAirportInfos()
         
@@ -159,6 +174,8 @@ class VoiceAtis(object):
                 
                 # Get ATIS frequency and associated airport.
                 self.getPyuipcData()
+                print(time.strftime('%H:%M:%S - COM 1: {}, COM 2: {}'.format(self.com1frequency,self.com2frequency)))
+                print(time.strftime('%H:%M:%S - COM 1 active: {}, COM 2 active: {}'.format(self.com1active,self.com2active)))
                 
                 # Get best suitable Airport.
                 self.getAirport()
@@ -167,6 +184,8 @@ class VoiceAtis(object):
                     print('No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME))
                     time.sleep(self.SLEEP_TIME)
                     continue
+                else:
+                    print(time.strftime('%H:%M:%S - Airport: {}.'.format(self.airport)))
                 
                 # Get whazzup file
                 if not self.DEBUG:
@@ -178,7 +197,14 @@ class VoiceAtis(object):
                 self.parseWhazzupText()
                 
                 if self.atisRaw is None:
+                    #TODO: Get METAR if no station online.
                     print('No station online, sleeping for {} seconds...'.format(self.SLEEP_TIME))
+                    time.sleep(self.SLEEP_TIME)
+                    continue
+                else:
+                    print(time.strftime('%H:%M:%S - Station found, decoding Atis.'))
+                
+                self.getInfoIdentifier()
                 
                 ####### DEBUG #######
                 if self.DEBUG:
@@ -203,15 +229,14 @@ class VoiceAtis(object):
                     # Parse voice.
                     self.parseVoiceMetar()
                 
-                    atisVoice = '{}. {}. {}'.format(self.informationVoice,self.metarVoice,self.rwyVoice)
+                    self.atisVoice = '{}. {}. {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.informationIdentifier)
                     
-                    print(self.atisRaw)
-                    print(atisVoice)
+                    print(time.strftime('%H:%M:%S - Start reading: "{}"'.format(self.atisVoice)))
                 
-    #             self.readVoice()
+                self.readVoice()
                 
                 # Wait some time for performance reasons.
-                time.sleep(self.SLEEP_TIME)
+#                 time.sleep(self.SLEEP_TIME)
         except KeyboardInterrupt:
             if pyuipcImported:
                 self.pyuipc.close()    
@@ -219,7 +244,7 @@ class VoiceAtis(object):
     
     ## Downloads and reads the whazzup from IVAO 
     def getWhazzupText(self):
-        urllib.request.urlretrieve('http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz', 'whazzup.txt.gz')
+        urllib.urlretrieve('http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz', 'whazzup.txt.gz')
         with gzip.open('whazzup.txt.gz', 'rb') as f:
             self.whazzupText = f.read().decode('iso-8859-15')
         os.remove('whazzup.txt.gz')
@@ -242,15 +267,17 @@ class VoiceAtis(object):
             if matchObj is not None:
                 break
         
-        if matchObj is None:
+        if matchObj is not None:
+            # Extract ATIS.
+            lineStart = matchObj.start()
+            lineEnd = self.whazzupText.find('\n',matchObj.start())
+            stationInfo = self.whazzupText[lineStart:lineEnd].split(':')
+            self.ivac2 = bool(int(stationInfo[39][0]) - 1)
+            self.atisRaw = stationInfo[35].encode('iso-8859-15').split('^§')
+        else:
             self.atisRaw = None
         
-        # Extract ATIS.
-        lineStart = matchObj.start()
-        lineEnd = self.whazzupText.find('\n',matchObj.start())
-        stationInfo = self.whazzupText[lineStart:lineEnd].split(':')
-        self.ivac2 = bool(int(stationInfo[39][0]) - 1)
-        self.atisRaw = stationInfo[35].split('^§')
+        
     
     
     ## Parse runway and transition data.
@@ -330,7 +357,11 @@ class VoiceAtis(object):
             self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.present_weather().replace(';',','))
         
         # clouds
-        self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.sky_conditions(',').replace(',',', ').replace('a few','few'))
+        if self.metar.sky:
+            self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.sky_conditions(',').replace(',',', ').replace('a few','few'))
+        elif 'CAVOK' in self.metar.code:
+            self.metarVoice = '{}, clouds and visibility ok'.format(self.metarVoice)
+        
         
         # runway condition
         #TODO: Implement runway conditions
@@ -361,6 +392,7 @@ class VoiceAtis(object):
         else:
             self.metarVoice = '{}, Altimeter {}'.format(self.metarVoice,parseVoiceString(self.metar.press.string()))
         
+        #TODO: implement trend
     
     # Generate a string of the information identifier for voice generation.
     def parseVoiceInformation(self):
@@ -411,11 +443,11 @@ class VoiceAtis(object):
     
     # Reads the atis string using voice generation.
     def readVoice(self):
-        self.engine = pyttsx3.init()
+        self.engine = pyttsx.init()
         
         # Set properties currently reading
         self.currentlyReading[0] = self.airport
-        self.currentlyReading[1] = self.frequency
+        self.currentlyReading[1] = self.com2frequency
         
         # Set properties.
         self.engine.setProperty('voice', self.ENGLISH_VOICE)
@@ -467,8 +499,8 @@ class VoiceAtis(object):
                 self.com2active = False
             
             # lat lon
-            self.lat = results[3]
-            self.lon = results[4]
+            self.lat = results[3] * (90.0/(10001750.0 * 65536.0 * 65536.0))
+            self.lon = results[4] * (360.0/(65536.0 * 65536.0 * 65536.0 * 65536.0))
         
         else:
             self.com1frequency = self.COM1_FREQUENCY_DEBUG
@@ -503,6 +535,12 @@ class VoiceAtis(object):
                 lineSplit = li.split(',')
                 self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]))
 
+
+    def getInfoIdentifier(self):
+        informationPos = re.search('information ',self.atisRaw[1]).end()
+        informationSplit = self.atisRaw[1][informationPos:].split(' ')
+        self.informationIdentifier = informationSplit[0]
+        pass
 
 if __name__ == '__main__':
     
