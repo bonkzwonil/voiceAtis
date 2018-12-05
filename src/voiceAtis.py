@@ -19,15 +19,21 @@
 # 
 #==============================================================================
 # CHANGELOG
+#
+# version 0.0.2 - 03.12.2018
+# - implemented wind gusts and variable wind
 # 
 # version 0.0.1 - 03.12.2018
 # - first version for testing purposes
-# - not runnable
+# - some Atis feartures missing
+# - no pyuipc
+# - voice not tested
 # 
 #==============================================================================
 # ROADMAP
 # 
 # - running version
+# - get ivac2 running
 # 
 #==============================================================================
 
@@ -86,8 +92,6 @@ class VoiceAtis(object):
     
     SPEECH_RATE = 140
     
-    STRICT_METAR = True
-    
     SLEEP_TIME = 60
     
     ## Setup the VoiceAtis object.
@@ -101,23 +105,28 @@ class VoiceAtis(object):
         while True:
             
             # Get ATIS frequency and associated airport.
-            
+
+            self.airport = 'SCQP' # 1
+#             self.airport = 'EDDM' # 1
+
 #             self.airport = 'LFMD'
-#             self.airport = 'EDDM' # M
 #             self.airport = 'LIBR'
 #             self.airport = 'LIRF'
 #             self.airport = 'EDDS'
 #             self.airport = 'LHKE'
-            self.airport = 'SCQP' # M
-            
-#             userMetar = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
-            userMetar = 'EDDL 212150Z 06007KT 9999 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+
             
             # Read whazzup file
 #             self.whazzupText = self.getWhazzupText()
-            self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_EDDM.txt')
+            self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt')
             
             self.parseWhazzupText()
+            
+            #### user metar ####
+#             self.atisRaw[2] = 'EDDL 212150Z 06007KT 9999 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+#             self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
+#             self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+            self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
             
             # Parse ATIS.
             if not self.ivac2:
@@ -125,8 +134,7 @@ class VoiceAtis(object):
                 self.informationVoice = self.parseVoiceInformation()
                 
                 # Metar.
-#                 self.metar = Metar(self.atisRaw[2].strip(),strict=self.STRICT_METAR)
-                self.metar = Metar(userMetar,strict=self.STRICT_METAR)
+                self.metar = Metar(self.atisRaw[2].strip(),strict=False)
                 
                 # Runways / TRL / TA
                 self.parseRawRwy1()
@@ -229,14 +237,20 @@ class VoiceAtis(object):
         #TODO: Test with many possible METARs
         
         # Wind
-        #TODO: Parse numbers
-        #TODO: test variable wind
-        #TODO: test gusts
-        windSpeedStr = self.metar.wind_speed.string()
-        if windSpeedStr != '0 knots':
-            self.metarVoice = ('{}, wind {}, {}').format(self.metarVoice,parseVoiceString(self.metar.wind_dir.string()),parseVoiceString(self.metar.wind_speed.string()))
+        if self.metar.wind_speed._value != 0:
+            if self.metar.wind_dir is not None:
+                self.metarVoice = ('{}, wind {}, {}').format(self.metarVoice,parseVoiceString(self.metar.wind_dir.string()),parseVoiceString(self.metar.wind_speed.string()))
+            else:
+                self.metarVoice = ('{}, wind variable, {}').format(self.metarVoice,parseVoiceString(self.metar.wind_speed.string()))
         else:
             self.metarVoice = ('{}, wind calm').format(self.metarVoice,self.metar.wind_dir.string(),self.metar.wind_speed.string())
+        
+        if self.metar.wind_gust is not None:
+            self.metarVoice = ('{}, maximum {}').format(self.metarVoice,parseVoiceString(self.metar.wind_gust.string()))
+        
+        if self.metar.wind_dir_from is not None:
+            self.metarVoice = ('{}, variable between {} and {}').format(self.metarVoice,parseVoiceString(self.metar.wind_dir_from.string()),parseVoiceString(self.metar.wind_dir_to.string()))
+            
         
         # Visibility.
         #TODO: test directions
@@ -244,18 +258,18 @@ class VoiceAtis(object):
         
         # runway visual range
         if self.metar.runway_visual_range():
-            self.metarVoice = ('{}, visual range {}').format(self.metarVoice,self.metar.runway_visual_range())
-            #TODO: test multiple runways visibility
+            self.metarVoice = ('{}, visual range {}').format(self.metarVoice,self.metar.runway_visual_range().replace(';', ','))
         
         # weather phenomena
         if self.metar.weather:
-            self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.present_weather())
+            self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.present_weather().replace(';',','))
         
         # clouds
-        self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.sky_conditions(',').replace(',',', '))
+        self.metarVoice = '{}, {}'.format(self.metarVoice,self.metar.sky_conditions(',').replace(',',', ').replace('a few','few'))
         
         # runway condition
         #TODO: Implement runway conditions
+        # Not implemented in python-metar
         
         # temperature
         tempValue = parseVoiceInt(str(int(self.metar.temp._value)))
@@ -276,7 +290,6 @@ class VoiceAtis(object):
         self.metarVoice = '{}, dew point {} {}'.format(self.metarVoice,dewptValue,dewptUnit)
         
         # QNH
-        #TODO: implement inHg
         if self.metar.press._units == 'MB':
             pressValue = parseVoiceInt(str(int(self.metar.press._value)))
             self.metarVoice = '{}, Q N H {} hectopascal'.format(self.metarVoice,pressValue)
