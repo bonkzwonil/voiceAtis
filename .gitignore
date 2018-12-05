@@ -1,0 +1,10 @@
+# compiled python files
+*.pyc
+
+# Eclipse project files
+.project
+.pydevproject
+.settings/
+
+#
+*test.py
