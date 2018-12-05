@@ -20,8 +20,10 @@
 #==============================================================================
 # CHANGELOG
 #
-# version 0.0.2 - 03.12.2018
+# version 0.0.2 - 05.12.2018
 # - implemented wind gusts and variable wind
+# - added pyuipc (untested)
+# - added logic to get airport
 # 
 # version 0.0.1 - 03.12.2018
 # - first version for testing purposes
@@ -33,32 +35,51 @@
 # ROADMAP
 # 
 # - running version
-# - get ivac2 running
+# - get ivac2 atis running
 # 
 #==============================================================================
 
 import os
 import re
 import time
-from metar.Metar import Metar
 import urllib.request
 import gzip
+
 try:
     import pyttsx3
+    pyttsx3Imported = True
 except ImportError:
     print('No voice')
+    pyttsx3Imported = False
+try:
+    import pyuipc  # @UnusedImport
+    pyuipcImported = True
+except ImportError:
+        print('No pyuipc')
+        pyuipcImported = False
+from metar.Metar import Metar
+
+import avFormula
 
 ## Sperate Numbers with whitespace
 # Needed for voice generation to be pronounced properly.
 # Example: 250 > 2 5 0
 def parseVoiceInt(number):
+    if isinstance(number, float):
+        number = int(number)
+    if isinstance(number, int):
+        number = str(number)
+    
     numberSep = ''
     for k in number:
         numberSep = '{}{} '.format(numberSep,k)
     return numberSep.strip()
 
 ## Sperate Numbers with whitespace and replace . by decimal'
-def parseVoiceFloat(number):    
+def parseVoiceFloat(number):
+    if isinstance(number, float):
+        number = str(number)
+    
     numberSep = ''
     for k in number:
         if k != '.' and k != ',':
@@ -92,67 +113,105 @@ class VoiceAtis(object):
     
     SPEECH_RATE = 140
     
-    SLEEP_TIME = 60
+    #TODO: reduce to normal time when finished debug
+    SLEEP_TIME = 60         # s
+    
+    DISTANCE_THRESHOLD = 30 # nm
+    
+    OFFSETS = [(0x034E,'H'),    # com1freq
+               (0x3118,'H'),    # com2freq
+               (0x3122,'b'),    # radioActive
+               (0x6D90,'f'),    # lat
+               (0x6D98,'f'),    # lon
+              ]
+    
+    COM1_FREQUENCY_DEBUG = 123.12
+    COM2_FREQUENCY_DEBUG = 126.12
+    LAT_DEBUG = 48.353
+    LON_DEBUG = 11.786
     
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
     def __init__(self):
         #TODO: Add FSUIPC code to get ATIS frequency
         
+        self.srcDir = os.path.dirname(os.path.abspath(__file__))
+        
         self.currentlyReading = [None,None]
         
-        # Start infinite loop.
-        while True:
+        if pyuipcImported:
+            self.pyuipcConnection = pyuipc.open(0)
+            self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
+        else:
+            self.pyuipcConnection = None
             
-            # Get ATIS frequency and associated airport.
-
-            self.airport = 'SCQP' # 1
-#             self.airport = 'EDDM' # 1
-
-#             self.airport = 'LFMD'
-#             self.airport = 'LIBR'
-#             self.airport = 'LIRF'
-#             self.airport = 'EDDS'
-#             self.airport = 'LHKE'
-
-            
-            # Read whazzup file
-#             self.whazzupText = self.getWhazzupText()
-            self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt')
-            
-            self.parseWhazzupText()
-            
-            #### user metar ####
-#             self.atisRaw[2] = 'EDDL 212150Z 06007KT 9999 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
-#             self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
-#             self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-            self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-            
-            # Parse ATIS.
-            if not self.ivac2:
-                # Information.
-                self.informationVoice = self.parseVoiceInformation()
+        self.getAirportInfos()
+        
+        # Infinite loop.
+        try:
+            while True:
                 
-                # Metar.
-                self.metar = Metar(self.atisRaw[2].strip(),strict=False)
+                # Get ATIS frequency and associated airport.
+                self.getPyuipcData()
                 
-                # Runways / TRL / TA
-                self.parseRawRwy1()
-                self.parseVoiceRwy()
-            
-                # Parse voice.
-                self.parseVoiceMetar()
-            
-                atisVoice = '{}. {}. {}'.format(self.informationVoice,self.metarVoice,self.rwyVoice)
+                self.getAirport()
                 
-                print(self.atisRaw)
-                print(atisVoice)
-            
-#             self.readVoice()
-            
-            # Wait some time for performance reasons.
-            return
-            time.sleep(self.SLEEP_TIME)
+                
+                ####### DEBUG #######
+#                 self.airport = 'SCQP' # 1
+    #             self.airport = 'EDDM' # 1
+    
+    #             self.airport = 'LFMD'
+    #             self.airport = 'LIBR'
+    #             self.airport = 'LIRF'
+    #             self.airport = 'EDDS'
+    #             self.airport = 'LHKE'
+                
+                ##### DEBUG END #####
+                
+                # Read whazzup file
+    #             self.whazzupText = self.getWhazzupText()
+                ####### DEBUG #######
+                self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt')
+                ##### DEBUG END #####
+                
+                self.parseWhazzupText()
+                
+                ####### DEBUG #######
+                self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+    #             self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
+    #             self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+    #             self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+                ##### DEBUG END #####
+                
+                # Parse ATIS.
+                if not self.ivac2:
+                    # Information.
+                    self.informationVoice = self.parseVoiceInformation()
+                    
+                    # Metar.
+                    self.metar = Metar(self.atisRaw[2].strip(),strict=False)
+                    
+                    # Runways / TRL / TA
+                    self.parseRawRwy1()
+                    self.parseVoiceRwy()
+                
+                    # Parse voice.
+                    self.parseVoiceMetar()
+                
+                    atisVoice = '{}. {}. {}'.format(self.informationVoice,self.metarVoice,self.rwyVoice)
+                    
+                    print(self.atisRaw)
+                    print(atisVoice)
+                
+    #             self.readVoice()
+                
+                # Wait some time for performance reasons.
+                return
+                time.sleep(self.SLEEP_TIME)
+        except KeyboardInterrupt:
+            if pyuipcImported:
+                self.pyuipc.close()    
     
     
     ## Downloads and reads the whazzup from IVAO 
@@ -162,12 +221,14 @@ class VoiceAtis(object):
             self.whazzupText = f.read().decode('iso-8859-15')
         os.remove('whazzup.txt.gz')
     
+    
     ## Reads a whazzup file on disk.
     # For debug purposes.
     def getWhazzupTextDebug(self,whazzupPath):
         with open(whazzupPath) as whazzupFile:
             self.whazzupText = whazzupFile.read()
         pass
+    
     
     ## Find a station of the airport and read the ATIS string.
     def parseWhazzupText(self):
@@ -179,7 +240,8 @@ class VoiceAtis(object):
                 break
         
         if matchObj is None:
-            raise(Exception,'No station found')
+            print('No station found')
+            raise(BaseException,'No station found')
         
         # Extract ATIS.
         lineStart = matchObj.start()
@@ -187,6 +249,7 @@ class VoiceAtis(object):
         stationInfo = self.whazzupText[lineStart:lineEnd].split(':')
         self.ivac2 = bool(int(stationInfo[39][0]) - 1)
         self.atisRaw = stationInfo[35].split('^§')
+    
     
     ## Parse runway and transition data.
     # Get active runways for arrival and departure.
@@ -253,7 +316,7 @@ class VoiceAtis(object):
             
         
         # Visibility.
-        #TODO: test directions
+        #TODO: implement directions
         self.metarVoice = ('{}, visibility {}').format(self.metarVoice,self.metar.vis.string())
         
         # runway visual range
@@ -305,6 +368,7 @@ class VoiceAtis(object):
         timeStr = parseVoiceInt(self.atisRaw[1][startInd:endInd])
         
         return '{} {} Zulu'.format(self.atisRaw[1][0:startInd-1],timeStr)
+    
     
     # Generate a string of the runway information for voice generation.
     def parseVoiceRwy(self):
@@ -360,18 +424,81 @@ class VoiceAtis(object):
         self.engine.say(self.atisVoice)
         self.engine.runAndWait()
     
+    
     def onWord(self, name, location, length):  # @UnusedVariable
-        self.getCurrentFrequency()
-        if self.frequency != self.currentlyReading[1] or not self.com2:
+        self.getPyuipcData()
+        
+        com1Reading = self.com1frequency == self.currentlyReading[1] and self.com1active
+        com2Reading = self.com2frequency == self.currentlyReading[1] and self.com2active
+        
+        if not com1Reading and not com2Reading:
             self.engine.stop()
             self.currentlyReading = [None,None]
     
+    
     ## Reads current frequency and COM2 status.
-    def getCurrentFrequency(self):
-        #TODO: Implement pyuipc
-        self.frequency = 118.8
-        self.com2 = True
+    def getPyuipcData(self):
+        #TODO: Test pyuipc
+        if pyuipcImported:
+            results = pyuipc.read(self.pyuipcOffsets)
         
+            # frequency
+            #TODO: Decode from BCD to float
+            self.com1frequency = results[0]
+            self.com2frequency = results[1]
+            
+            # radio active
+            radioActiveBits = list(map(int, '{0:08b}'.format(results[2])))
+            if radioActiveBits[2]:
+                self.com1active = True
+                self.com2active = True
+            elif radioActiveBits[0]:
+                self.com1active = True
+                self.com2active = False
+            elif radioActiveBits[1]:
+                self.com1active = False
+                self.com2active = True
+            else:
+                self.com1active = False
+                self.com2active = False
+            
+            # lat lon
+            self.lat = results[3]
+            self.lon = results[4]
+        
+        else:
+            self.com1frequency = self.COM1_FREQUENCY_DEBUG
+            self.com2frequency = self.COM2_FREQUENCY_DEBUG
+            self.com1active = True
+            self.com2active = True
+            self.lat = self.LAT_DEBUG
+            self.lon = self.LON_DEBUG
+
+
+    def getAirport(self):
+        self.airport = None
+        frequencies = []
+        if self.com1active:
+            frequencies.append(self.com1frequency)
+        if self.com2active:
+            frequencies.append(self.com2frequency)
+            
+        if frequencies:
+            distanceMin = self.DISTANCE_THRESHOLD + 1
+            for ap in self.airportInfos:
+                distance = avFormula.gcDistanceNm(self.lat, self.airportInfos[ap][1], self.lon, self.airportInfos[ap][2])
+                if self.airportInfos[ap][0] in frequencies and distance < self.DISTANCE_THRESHOLD and distance < distanceMin:
+                    distanceMin = distance
+                    self.airport = ap
+    
+    
+    def getAirportInfos(self):
+        self.airportInfos = {}
+        with open(os.path.join(os.path.dirname(self.srcDir),'airports.info')) as aptInfoFile:
+            for li in aptInfoFile:
+                lineSplit = li.split(',')
+                self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]))
+
 
 if __name__ == '__main__':
     
