@@ -114,7 +114,7 @@ class VoiceAtis(object):
     SPEECH_RATE = 140
     
     #TODO: reduce to normal time when finished debug
-    SLEEP_TIME = 60         # s
+    SLEEP_TIME = 30         # s
     
     DISTANCE_THRESHOLD = 30 # nm
     
@@ -125,10 +125,13 @@ class VoiceAtis(object):
                (0x6D98,'f'),    # lon
               ]
     
-    COM1_FREQUENCY_DEBUG = 123.12
-    COM2_FREQUENCY_DEBUG = 126.12
+    DEBUG = True
+#     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
+    COM1_FREQUENCY_DEBUG = 199.99
+    COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
     LAT_DEBUG = 48.353
     LON_DEBUG = 11.786
+    WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
     
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
@@ -147,6 +150,9 @@ class VoiceAtis(object):
             
         self.getAirportInfos()
         
+        if self.DEBUG:
+            print('Debug')
+        
         # Infinite loop.
         try:
             while True:
@@ -154,34 +160,32 @@ class VoiceAtis(object):
                 # Get ATIS frequency and associated airport.
                 self.getPyuipcData()
                 
+                # Get best suitable Airport.
                 self.getAirport()
                 
+                if self.airport is None:
+                    print('No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME))
+                    time.sleep(self.SLEEP_TIME)
+                    continue
                 
-                ####### DEBUG #######
-#                 self.airport = 'SCQP' # 1
-    #             self.airport = 'EDDM' # 1
-    
-    #             self.airport = 'LFMD'
-    #             self.airport = 'LIBR'
-    #             self.airport = 'LIRF'
-    #             self.airport = 'EDDS'
-    #             self.airport = 'LHKE'
+                # Get whazzup file
+                if not self.DEBUG:
+                    self.getWhazzupText()
+                else:
+                    self.getWhazzupTextDebug()
                 
-                ##### DEBUG END #####
-                
-                # Read whazzup file
-    #             self.whazzupText = self.getWhazzupText()
-                ####### DEBUG #######
-                self.getWhazzupTextDebug(r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt')
-                ##### DEBUG END #####
-                
+                # Read whazzup text and get a station.
                 self.parseWhazzupText()
                 
+                if self.atisRaw is None:
+                    print('No station online, sleeping for {} seconds...'.format(self.SLEEP_TIME))
+                
                 ####### DEBUG #######
-                self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
-    #             self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
-    #             self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-    #             self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+                if self.DEBUG:
+                    self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+#                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
+#                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+#                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
                 ##### DEBUG END #####
                 
                 # Parse ATIS.
@@ -207,7 +211,6 @@ class VoiceAtis(object):
     #             self.readVoice()
                 
                 # Wait some time for performance reasons.
-                return
                 time.sleep(self.SLEEP_TIME)
         except KeyboardInterrupt:
             if pyuipcImported:
@@ -224,8 +227,8 @@ class VoiceAtis(object):
     
     ## Reads a whazzup file on disk.
     # For debug purposes.
-    def getWhazzupTextDebug(self,whazzupPath):
-        with open(whazzupPath) as whazzupFile:
+    def getWhazzupTextDebug(self):
+        with open(self.WHAZZUP_TEXT_DEBUG) as whazzupFile:
             self.whazzupText = whazzupFile.read()
         pass
     
@@ -240,8 +243,7 @@ class VoiceAtis(object):
                 break
         
         if matchObj is None:
-            print('No station found')
-            raise(BaseException,'No station found')
+            self.atisRaw = None
         
         # Extract ATIS.
         lineStart = matchObj.start()
@@ -443,9 +445,11 @@ class VoiceAtis(object):
             results = pyuipc.read(self.pyuipcOffsets)
         
             # frequency
-            #TODO: Decode from BCD to float
-            self.com1frequency = results[0]
-            self.com2frequency = results[1]
+            #TODO: Test decode from BCD to float
+            hexCode = hex(results[0])[2:]
+            self.com1frequency = float('1{}.{}'.format(hexCode[0:2],hexCode[2:]))
+            hexCode = hex(results[1])[2:]
+            self.com2frequency = float('1{}.{}'.format(hexCode[0:2],hexCode[2:]))
             
             # radio active
             radioActiveBits = list(map(int, '{0:08b}'.format(results[2])))
