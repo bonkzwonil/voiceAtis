@@ -15,9 +15,11 @@ Reads an ATIS from IVAO using voice generation
  https://github.com/Sowintuu/voiceAtis.git
 * Get the latest python 2.7 from here: [Python releases](https://www.python.org/downloads/)
 * Install pyuipc
+** Download [FSUIPC SDK](http://fsuipc.simflight.com/beta/FSUIPC_SDK.zip)
+** Inside this zip-file run `UIPC_SDK_Python.zip\pyuipc-0.3.win32-py2.7.msi`
 * Get pyttsx
 ** Open a command windows in the Python-Script folder
-** Run "pip install pyttsx"
+** Run `pip install pyttsx`
 
 ## Usage
 * Start the script "voiceAtis.py"
@@ -73,3 +75,8 @@ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
 WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+### pyuipc - FSUIPC SDK for Python
+
+All Copyright - Peter Dowson and István Váradi.
