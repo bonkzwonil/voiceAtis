@@ -15,23 +15,23 @@ Reads an ATIS from IVAO using voice generation
  https://github.com/Sowintuu/voiceAtis.git
 * Get the latest python 2.7 from here: [Python releases](https://www.python.org/downloads/)
 * Install pyuipc
-** Download [FSUIPC SDK](http://fsuipc.simflight.com/beta/FSUIPC_SDK.zip)
-** Inside this zip-file run `UIPC_SDK_Python.zip\pyuipc-0.3.win32-py2.7.msi`
+   * Download [FSUIPC SDK](http://fsuipc.simflight.com/beta/FSUIPC_SDK.zip)
+   * Inside this zip-file run `UIPC_SDK_Python.zip\pyuipc-0.3.win32-py2.7.msi`
 * Get pyttsx
-** Open a command windows in the Python-Script folder
-** Run `pip install pyttsx`
+   * Open a command windows in the Python-Script folder
+   * Run `pip install pyttsx`
 
 ## Usage
 * Start the script "voiceAtis.py"
-** If you would like to see the command output, open it from console.
+   * If you would like to see the command output, open it from console.
 
 * Start your sim and start a flight.
 * Turn in the ATIS frequency of the airport where you are parking.
-** Don't forget to activate receive mode of the radio (COM1 or COM2)
+   * Don't forget to activate receive mode of the radio (COM1 or COM2)
 * You should hear the ATIS now, if:
-** There is an ATC station online at this airport (TWR, APP, GND or DEL)
-** The airport is in the list of approved airports (airports.info)
-*** Fell free to help me by providing frequencies of missing airports!
+   * There is an ATC station online at this airport (TWR, APP, GND or DEL)
+   * The airport is in the list of approved airports (airports.info)
+   * Fell free to help me by providing frequencies of missing airports!
 
 
 ## Used packages and Copyright
@@ -79,4 +79,4 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ### pyuipc - FSUIPC SDK for Python
 
-All Copyright - Peter Dowson and Istv·n V·radi.
+All Copyright - Peter Dowson and Istv√°n V√°radi.
