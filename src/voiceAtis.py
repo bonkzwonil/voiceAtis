@@ -65,7 +65,8 @@ import avFormula
 
 ## Sperate Numbers with whitespace
 # Needed for voice generation to be pronounced properly.
-# Example: 250 > 2 5 0
+# Also replaces - by 'minus'
+# Example: -250 > minus 2 5 0
 def parseVoiceInt(number):
     if isinstance(number, float):
         number = int(number)
@@ -80,7 +81,10 @@ def parseVoiceInt(number):
             numberSep = '{}minus '.format(numberSep)
     return numberSep.strip()
 
-## Sperate Numbers with whitespace and replace . by decimal'
+## Sperate Numbers with whitespace
+# Also replaces . or , by 'decimal'
+# Also replaces - by 'minus'
+# Example: -118.80 > minus 1 1 8 decimal 8 0
 def parseVoiceFloat(number):
     if isinstance(number, float):
         number = str(number)
@@ -95,6 +99,8 @@ def parseVoiceFloat(number):
             numberSep = '{}minus '.format(numberSep)
     return numberSep.strip()
 
+## Search a string for numbers and seperate with whitespaces.
+# Using parseVoiceInt() and parseVoiceFloat().
 def parseVoiceString(string):
     pattern = re.compile('\d+[,.]\d+')
     match = pattern.search(string)
@@ -120,7 +126,6 @@ class VoiceAtis(object):
     
     SPEECH_RATE = 150
     
-    #TODO: reduce to normal time when finished debug
     SLEEP_TIME = 3         # s
     
     DISTANCE_THRESHOLD = 30 # nm
@@ -132,10 +137,10 @@ class VoiceAtis(object):
                (0x0568,'l'),
               ]
     
-    DEBUG = False
+    DEBUG = True
 #     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
     COM1_FREQUENCY_DEBUG = 199.99
-    COM2_FREQUENCY_DEBUG = 126.125 # EDDS_ATIS
+    COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
     LAT_DEBUG = 48.687
     LON_DEBUG = 9.205
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
@@ -143,10 +148,9 @@ class VoiceAtis(object):
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
     def __init__(self):
-        #TODO: Upload airports.info
-        #TODO: Insert useful console output
+        #TODO: Write log from console output
         #TODO: Create installation package
-        #TODO: Test switching properly
+        #TODO: Test switching of frequency properly
         
         print(time.strftime('%H:%M:%S - voiceAtis started.'))
         
@@ -230,8 +234,6 @@ class VoiceAtis(object):
                     self.parseVoiceMetar()
                 
                     self.atisVoice = '{}. {}. {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.informationIdentifier)
-                    
-                    print(time.strftime('%H:%M:%S - Start reading: "{}"'.format(self.atisVoice)))
                 
                 self.readVoice()
                 
@@ -443,6 +445,9 @@ class VoiceAtis(object):
     
     # Reads the atis string using voice generation.
     def readVoice(self):
+        
+        print(time.strftime('%H:%M:%S - Start reading: "{}"'.format(self.atisVoice)))
+        
         self.engine = pyttsx.init()
         
         # Set properties currently reading
@@ -457,6 +462,7 @@ class VoiceAtis(object):
         self.engine.connect('started-word', self.onWord)
         self.engine.say(self.atisVoice)
         self.engine.runAndWait()
+        self.engine = None #TODO: Test if it works properly on frequency change
     
     
     def onWord(self, name, location, length):  # @UnusedVariable
