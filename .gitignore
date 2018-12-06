@@ -6,5 +6,8 @@
 .pydevproject
 .settings/
 
-#
+# Downloaded whazzup.txt.gz
+*whazzup.txt.gz
+
+# other
 *test.py

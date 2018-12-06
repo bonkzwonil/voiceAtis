@@ -42,10 +42,14 @@
 #==============================================================================
 
 import os
+import sys
 import re
 import time
 import urllib
 import gzip
+
+
+sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
 try:
     import pyttsx
@@ -128,7 +132,7 @@ class VoiceAtis(object):
     
     SLEEP_TIME = 3         # s
     
-    DISTANCE_THRESHOLD = 30 # nm
+    DISTANCE_THRESHOLD = 180 # nm
     
     OFFSETS = [(0x034E,'H'),    # com1freq
                (0x3118,'H'),    # com2freq
@@ -137,7 +141,7 @@ class VoiceAtis(object):
                (0x0568,'l'),
               ]
     
-    DEBUG = True
+    DEBUG = False
 #     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
     COM1_FREQUENCY_DEBUG = 199.99
     COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
