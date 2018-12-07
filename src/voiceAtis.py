@@ -20,6 +20,11 @@
 #==============================================================================
 # CHANGELOG
 #
+# version 0.0.3 - 07.12.2018
+# - Now using metar if no ATIS available
+# - pyuipc tested and running
+# - Changed RADIO_RANGE to a (realistic) value of 180 nm
+#
 # version 0.0.2 - 05.12.2018
 # - implemented wind gusts and variable wind
 # - port to python2 (due to pyuipc)
@@ -48,7 +53,6 @@ import time
 import urllib
 import gzip
 
-
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
 try:
@@ -60,14 +64,16 @@ except ImportError:
 try:
     import pyuipc  # @UnusedImport
     pyuipcImported = True
+    debug = False
 except ImportError:
         print('No pyuipc')
         pyuipcImported = False
+        debug = True
 from metar.Metar import Metar
 
 import avFormula
 
-## Sperate Numbers with whitespace
+## Sperates integer Numbers with whitespace
 # Needed for voice generation to be pronounced properly.
 # Also replaces - by 'minus'
 # Example: -250 > minus 2 5 0
@@ -85,7 +91,7 @@ def parseVoiceInt(number):
             numberSep = '{}minus '.format(numberSep)
     return numberSep.strip()
 
-## Sperate Numbers with whitespace
+## Sperates decimal Numbers with whitespace
 # Also replaces . or , by 'decimal'
 # Also replaces - by 'minus'
 # Example: -118.80 > minus 1 1 8 decimal 8 0
@@ -122,6 +128,24 @@ def parseVoiceString(string):
         
     return string
 
+## Splits a string at each char and replaces them with ICAO-alphabet.
+def parseVoiceChars(string):
+    CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
+                  'D' : 'DELTA',    'E' : 'ECHO',       'F' : 'FOXTROTT',
+                  'G' : 'GOLF',     'H' : 'HOTEL',      'I' : 'INDIA',
+                  'J' : 'JULIETT',  'K' : 'KILO',       'L' : 'LIMA',
+                  'M' : 'MIKE',     'N' : 'NOVEMBER',   'O' : 'OSCAR',
+                  'P' : 'PAPA',     'Q' : 'QUEBEC',     'R' : 'ROMEO',
+                  'S' : 'SIERRA',   'T' : 'TANGO',      'U' : 'UNIFORM',
+                  'V' : 'VICTOR',   'W' : 'WHISKEY',    'X' : 'XRAY',
+                  'Y' : 'YANKEE',   'Z' : 'ZULU'}
+        
+    stringSep = ''
+    for k in string:
+        stringSep = '{}{} '.format(stringSep,CHAR_TABLE[k])
+    
+    return stringSep.strip()
+
 class VoiceAtis(object):
     
     ENGLISH_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
@@ -132,7 +156,7 @@ class VoiceAtis(object):
     
     SLEEP_TIME = 3         # s
     
-    DISTANCE_THRESHOLD = 180 # nm
+    RADIO_RANGE = 180 # nm
     
     OFFSETS = [(0x034E,'H'),    # com1freq
                (0x3118,'H'),    # com2freq
@@ -141,12 +165,14 @@ class VoiceAtis(object):
                (0x0568,'l'),
               ]
     
-    DEBUG = False
+    WHAZZUP_URL = 'http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz'
+    WHAZZUP_METAR_URL = 'http://wx.ivao.aero/metar.php'
+    
 #     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
     COM1_FREQUENCY_DEBUG = 199.99
     COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
-    LAT_DEBUG = 48.687
-    LON_DEBUG = 9.205
+    LAT_DEBUG = 48.687  # EDDS
+    LON_DEBUG = 9.205   # EDDS
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
     
     ## Setup the VoiceAtis object.
@@ -155,6 +181,7 @@ class VoiceAtis(object):
         #TODO: Write log from console output
         #TODO: Create installation package
         #TODO: Test switching of frequency properly
+        #TODO: Remove the debug code when tested properly
         
         print(time.strftime('%H:%M:%S - voiceAtis started.'))
         
@@ -173,7 +200,7 @@ class VoiceAtis(object):
             
         self.getAirportInfos()
         
-        if self.DEBUG:
+        if debug:
             print('Debug')
         
         # Infinite loop.
@@ -189,14 +216,14 @@ class VoiceAtis(object):
                 self.getAirport()
                 
                 if self.airport is None:
-                    print('No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME))
+                    print(time.strftime('%H:%M:%S - No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME)))
                     time.sleep(self.SLEEP_TIME)
                     continue
                 else:
                     print(time.strftime('%H:%M:%S - Airport: {}.'.format(self.airport)))
                 
                 # Get whazzup file
-                if not self.DEBUG:
+                if not debug:
                     self.getWhazzupText()
                 else:
                     self.getWhazzupTextDebug()
@@ -204,19 +231,30 @@ class VoiceAtis(object):
                 # Read whazzup text and get a station.
                 self.parseWhazzupText()
                 
+                # Actions, if no station online.
                 if self.atisRaw is None:
-                    #TODO: Get METAR if no station online.
-                    print('No station online, sleeping for {} seconds...'.format(self.SLEEP_TIME))
+                    print(time.strftime('%H:%M:%S - No station online, using metar only.'))
+                    self.metar = Metar(self.getAirportMetar(),strict=False)
+                    self.parseVoiceMetar()
+                    
+                    self.atisVoice = '{} {} {} {}, {}.'.format(parseVoiceChars(self.airport[0]),
+                                                               parseVoiceChars(self.airport[1]),
+                                                               parseVoiceChars(self.airport[2]),
+                                                               parseVoiceChars(self.airport[3]),
+                                                               self.metarVoice)
+                    
+                    self.readVoice()
+                    
                     time.sleep(self.SLEEP_TIME)
                     continue
                 else:
                     print(time.strftime('%H:%M:%S - Station found, decoding Atis.'))
                 
-                self.getInfoIdentifier()
                 
                 ####### DEBUG #######
-                if self.DEBUG:
-                    self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+                if debug:
+                    pass
+#                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
 #                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
 #                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
 #                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
@@ -225,7 +263,8 @@ class VoiceAtis(object):
                 # Parse ATIS.
                 if not self.ivac2:
                     # Information.
-                    self.informationVoice = self.parseVoiceInformation()
+                    self.parseVoiceInformation()
+                    self.getInfoIdentifier()
                     
                     # Metar.
                     self.metar = Metar(self.atisRaw[2].strip(),strict=False)
@@ -241,16 +280,16 @@ class VoiceAtis(object):
                 
                 self.readVoice()
                 
-                # Wait some time for performance reasons.
-#                 time.sleep(self.SLEEP_TIME)
         except KeyboardInterrupt:
+            print(time.strftime('%H:%M:%S - Loop interrupted by user.'))
             if pyuipcImported:
-                self.pyuipc.close()    
+                self.pyuipc.close()
+            
     
     
     ## Downloads and reads the whazzup from IVAO 
     def getWhazzupText(self):
-        urllib.urlretrieve('http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz', 'whazzup.txt.gz')
+        urllib.urlretrieve(self.WHAZZUP_URL, 'whazzup.txt.gz')
         with gzip.open('whazzup.txt.gz', 'rb') as f:
             self.whazzupText = f.read().decode('iso-8859-15')
         os.remove('whazzup.txt.gz')
@@ -334,29 +373,34 @@ class VoiceAtis(object):
         self.metarVoice = 'Met report'
         #TODO: Test with many possible METARs
         
+        # Time
+        hours = parseVoiceInt('{:02d}'.format(self.metar._hour))
+        minutes = parseVoiceInt('{:02d}'.format(self.metar._min))
+        self.metarVoice = '{} time {} {} zulu'.format(self.metarVoice,hours,minutes)
+        
         # Wind
         if self.metar.wind_speed._value != 0:
             if self.metar.wind_dir is not None:
-                self.metarVoice = ('{}, wind {}, {}').format(self.metarVoice,parseVoiceString(self.metar.wind_dir.string()),parseVoiceString(self.metar.wind_speed.string()))
+                self.metarVoice = '{}, wind {}, {}'.format(self.metarVoice,parseVoiceString(self.metar.wind_dir.string()),parseVoiceString(self.metar.wind_speed.string()))
             else:
-                self.metarVoice = ('{}, wind variable, {}').format(self.metarVoice,parseVoiceString(self.metar.wind_speed.string()))
+                self.metarVoice = '{}, wind variable, {}'.format(self.metarVoice,parseVoiceString(self.metar.wind_speed.string()))
         else:
-            self.metarVoice = ('{}, wind calm').format(self.metarVoice,self.metar.wind_dir.string(),self.metar.wind_speed.string())
+            self.metarVoice = '{}, wind calm'.format(self.metarVoice,self.metar.wind_dir.string(),self.metar.wind_speed.string())
         
         if self.metar.wind_gust is not None:
-            self.metarVoice = ('{}, maximum {}').format(self.metarVoice,parseVoiceString(self.metar.wind_gust.string()))
+            self.metarVoice = '{}, maximum {}'.format(self.metarVoice,parseVoiceString(self.metar.wind_gust.string()))
         
         if self.metar.wind_dir_from is not None:
-            self.metarVoice = ('{}, variable between {} and {}').format(self.metarVoice,parseVoiceString(self.metar.wind_dir_from.string()),parseVoiceString(self.metar.wind_dir_to.string()))
+            self.metarVoice = '{}, variable between {} and {}'.format(self.metarVoice,parseVoiceString(self.metar.wind_dir_from.string()),parseVoiceString(self.metar.wind_dir_to.string()))
             
         
         # Visibility.
         #TODO: implement directions
-        self.metarVoice = ('{}, visibility {}').format(self.metarVoice,self.metar.vis.string())
+        self.metarVoice = '{}, visibility {}'.format(self.metarVoice,self.metar.vis.string())
         
         # runway visual range
         if self.metar.runway_visual_range():
-            self.metarVoice = ('{}, visual range {}').format(self.metarVoice,self.metar.runway_visual_range().replace(';', ','))
+            self.metarVoice = '{}, visual range {}'.format(self.metarVoice,self.metar.runway_visual_range().replace(';', ','))
         
         # weather phenomena
         if self.metar.weather:
@@ -407,7 +451,7 @@ class VoiceAtis(object):
         endInd = timeMatch.end()- 1
         timeStr = parseVoiceInt(self.atisRaw[1][startInd:endInd])
         
-        return '{} {} Zulu'.format(self.atisRaw[1][0:startInd-1],timeStr)
+        self.informationVoice = '{} {} Zulu'.format(self.atisRaw[1][0:startInd-1],timeStr)
     
     
     # Generate a string of the runway information for voice generation.
@@ -452,22 +496,26 @@ class VoiceAtis(object):
         
         print(time.strftime('%H:%M:%S - Start reading: "{}"'.format(self.atisVoice)))
         
-        self.engine = pyttsx.init()
-        
-        # Set properties currently reading
-        self.currentlyReading[0] = self.airport
-        self.currentlyReading[1] = self.com2frequency
-        
-        # Set properties.
-        self.engine.setProperty('voice', self.ENGLISH_VOICE)
-        self.engine.setProperty('rate', self.SPEECH_RATE)
-        
-        # Start listener and loop.
-        self.engine.connect('started-word', self.onWord)
-        self.engine.say(self.atisVoice)
-        self.engine.runAndWait()
-        self.engine = None #TODO: Test if it works properly on frequency change
-    
+        if pyttsxImported:
+            self.engine = pyttsx.init()
+            
+            # Set properties currently reading
+            self.currentlyReading[0] = self.airport
+            self.currentlyReading[1] = self.com2frequency
+            
+            # Set properties.
+            self.engine.setProperty('voice', self.ENGLISH_VOICE)
+            self.engine.setProperty('rate', self.SPEECH_RATE)
+            
+            # Start listener and loop.
+            self.engine.connect('started-word', self.onWord)
+            self.engine.say(self.atisVoice)
+            self.engine.runAndWait()
+            self.engine = None #TODO: Test if it works properly on frequency change
+            
+        else:
+            print(time.strftime('%H:%M:%S - Speech engine not initalized. No reading.'))
+            time.sleep(self.SLEEP_TIME)
     
     def onWord(self, name, location, length):  # @UnusedVariable
         self.getPyuipcData()
@@ -530,10 +578,10 @@ class VoiceAtis(object):
             frequencies.append(self.com2frequency)
             
         if frequencies:
-            distanceMin = self.DISTANCE_THRESHOLD + 1
+            distanceMin = self.RADIO_RANGE + 1
             for ap in self.airportInfos:
                 distance = avFormula.gcDistanceNm(self.lat, self.airportInfos[ap][1], self.lon, self.airportInfos[ap][2])
-                if self.airportInfos[ap][0] in frequencies and distance < self.DISTANCE_THRESHOLD and distance < distanceMin:
+                if self.airportInfos[ap][0] in frequencies and distance < self.RADIO_RANGE and distance < distanceMin:
                     distanceMin = distance
                     self.airport = ap
     
@@ -551,7 +599,24 @@ class VoiceAtis(object):
         informationSplit = self.atisRaw[1][informationPos:].split(' ')
         self.informationIdentifier = informationSplit[0]
         pass
-
+    
+    def getAirportMetar(self):
+        #TODO: Test without debug mode.
+        if not debug:
+            urllib.urlretrieve(self.WHAZZUP_METAR_URL, 'whazzup_metar.txt')
+            
+        with open('whazzup_metar.txt', 'r') as metarFile:
+            metarText = metarFile.read()
+            
+        if not debug:
+            os.remove('whazzup_metar.txt')
+        
+        metarStart = metarText.find(self.airport)
+        metarEnd = metarText.find('\n',metarStart)
+        
+        return metarText[metarStart:metarEnd]
+        
+    
 if __name__ == '__main__':
     
 #     string = 'foo 123 bar 234 foo 1.23 bar 30.04'
