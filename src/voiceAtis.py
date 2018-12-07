@@ -24,23 +24,23 @@
 # - Now using metar if no ATIS available
 # - pyuipc tested and running
 # - Changed RADIO_RANGE to a (realistic) value of 180 nm
+# - Implemented logging
 #
 # version 0.0.2 - 05.12.2018
-# - implemented wind gusts and variable wind
-# - port to python2 (due to pyuipc)
-# - added pyuipc (untested)
-# - added logic to get airport
+# - Implemented wind gusts and variable wind
+# - Port to python2 (due to pyuipc)
+# - Added pyuipc (untested)
+# - Added logic to get airport
 # 
 # version 0.0.1 - 03.12.2018
-# - first version for testing purposes
-# - some Atis feartures missing
-# - no pyuipc
-# - voice not tested
+# - First version for testing purposes
+# - Some Atis feartures missing
+# - No pyuipc
+# - Voice not tested
 # 
 #==============================================================================
 # ROADMAP
 # 
-# - running version
 # - random start
 # - get ivac2 atis running
 # 
@@ -52,6 +52,7 @@ import re
 import time
 import urllib
 import gzip
+import logging
 
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
@@ -59,14 +60,12 @@ try:
     import pyttsx
     pyttsxImported = True
 except ImportError:
-    print('No voice')
     pyttsxImported = False
 try:
-    import pyuipc  # @UnusedImport
+    import pyuipc
     pyuipcImported = True
     debug = False
 except ImportError:
-        print('No pyuipc')
         pyuipcImported = False
         debug = True
 from metar.Metar import Metar
@@ -154,15 +153,15 @@ class VoiceAtis(object):
     
     SPEECH_RATE = 150
     
-    SLEEP_TIME = 3         # s
+    SLEEP_TIME = 3 # s
     
     RADIO_RANGE = 180 # nm
     
     OFFSETS = [(0x034E,'H'),    # com1freq
                (0x3118,'H'),    # com2freq
                (0x3122,'b'),    # radioActive
-               (0x0560,'l'),
-               (0x0568,'l'),
+               (0x0560,'l'),    # ac Latitude
+               (0x0568,'l'),    # ac Longitude
               ]
     
     WHAZZUP_URL = 'http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz'
@@ -178,30 +177,35 @@ class VoiceAtis(object):
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
     def __init__(self):
-        #TODO: Write log from console output
-        #TODO: Create installation package
         #TODO: Test switching of frequency properly
         #TODO: Remove the debug code when tested properly
+        #TODO: Create installation package
         
-        print(time.strftime('%H:%M:%S - voiceAtis started.'))
+        # Get file path.
+        self.rootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        self.srcDir = os.path.dirname(os.path.abspath(__file__))
+        # Init logging.
+        self.initLogging()
         
-        self.currentlyReading = [None,None]
+        # First log message.
+        self.logger.info('voiceAtis started')
         
         # Establish pyuipc connection
         if pyuipcImported:
             self.pyuipcConnection = pyuipc.open(0)
             self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
-            print(time.strftime('%H:%M:%S - FSUIPC connection established.'))
+            self.logger.info('FSUIPC connection established.')
         else:
             self.pyuipcConnection = None
-            print(time.strftime('%H:%M:%S - Using voiceAtis without FSUIPC'))
-            
+            self.logger.warning('Using voiceAtis without FSUIPC.')
+        
+        # Read file with airport frequencies and coordinates.
         self.getAirportInfos()
         
+        # Show debug Info
+        #TODO: Remove when not needed any more
         if debug:
-            print('Debug')
+            self.logger.info('Debug mode on.')
         
         # Infinite loop.
         try:
@@ -209,18 +213,19 @@ class VoiceAtis(object):
                 
                 # Get ATIS frequency and associated airport.
                 self.getPyuipcData()
-                print(time.strftime('%H:%M:%S - COM 1: {}, COM 2: {}'.format(self.com1frequency,self.com2frequency)))
-                print(time.strftime('%H:%M:%S - COM 1 active: {}, COM 2 active: {}'.format(self.com1active,self.com2active)))
+                self.logger.debug('COM 1: {}, COM 2: {}'.format(self.com1frequency,self.com2frequency))
+                self.logger.debug('COM 1 active: {}, COM 2 active: {}'.format(self.com1active,self.com2active))
                 
                 # Get best suitable Airport.
                 self.getAirport()
                 
+                # Handle if no airport found.
                 if self.airport is None:
-                    print(time.strftime('%H:%M:%S - No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME)))
+                    self.logger.info('No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME))
                     time.sleep(self.SLEEP_TIME)
                     continue
                 else:
-                    print(time.strftime('%H:%M:%S - Airport: {}.'.format(self.airport)))
+                    self.logger.info('Airport: {}.'.format(self.airport))
                 
                 # Get whazzup file
                 if not debug:
@@ -233,22 +238,24 @@ class VoiceAtis(object):
                 
                 # Actions, if no station online.
                 if self.atisRaw is None:
-                    print(time.strftime('%H:%M:%S - No station online, using metar only.'))
+                    self.logger.info('No station online, using metar only.')
                     self.metar = Metar(self.getAirportMetar(),strict=False)
                     self.parseVoiceMetar()
                     
+                    # Parse atis voice with metar only.
                     self.atisVoice = '{} {} {} {}, {}.'.format(parseVoiceChars(self.airport[0]),
                                                                parseVoiceChars(self.airport[1]),
                                                                parseVoiceChars(self.airport[2]),
                                                                parseVoiceChars(self.airport[3]),
                                                                self.metarVoice)
                     
+                    # Read the metar.
                     self.readVoice()
                     
                     time.sleep(self.SLEEP_TIME)
                     continue
                 else:
-                    print(time.strftime('%H:%M:%S - Station found, decoding Atis.'))
+                    self.logger.info('Station found, decoding Atis.')
                 
                 
                 ####### DEBUG #######
@@ -261,27 +268,32 @@ class VoiceAtis(object):
                 ##### DEBUG END #####
                 
                 # Parse ATIS.
+                #TODO: Implement ivac2 stations.
                 if not self.ivac2:
                     # Information.
-                    self.parseVoiceInformation()
                     self.getInfoIdentifier()
+                    self.parseVoiceInformation()
                     
                     # Metar.
                     self.metar = Metar(self.atisRaw[2].strip(),strict=False)
+                    self.parseVoiceMetar()
                     
                     # Runways / TRL / TA
                     self.parseRawRwy1()
                     self.parseVoiceRwy()
-                
-                    # Parse voice.
-                    self.parseVoiceMetar()
-                
+                    
+                    # Comment.
+                    #TODO: Implement parsing of comment for ivac 1 and 2.
+                    
+                    # Compose complete atis voice string.
                     self.atisVoice = '{}. {}. {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.informationIdentifier)
                 
+                # Read the string (ivac 1 and 2).
                 self.readVoice()
                 
         except KeyboardInterrupt:
-            print(time.strftime('%H:%M:%S - Loop interrupted by user.'))
+            # Actions at Keyboard Interrupt.
+            self.logger.info('Loop interrupted by user.')
             if pyuipcImported:
                 self.pyuipc.close()
             
@@ -494,9 +506,13 @@ class VoiceAtis(object):
     # Reads the atis string using voice generation.
     def readVoice(self):
         
-        print(time.strftime('%H:%M:%S - Start reading: "{}"'.format(self.atisVoice)))
+        self.logger.info('Start reading: "{}"'.format(self.atisVoice))
+        
+        # Init currently Reading with None.
+        self.currentlyReading = [None,None]
         
         if pyttsxImported:
+            # Init voice engine.
             self.engine = pyttsx.init()
             
             # Set properties currently reading
@@ -514,7 +530,7 @@ class VoiceAtis(object):
             self.engine = None #TODO: Test if it works properly on frequency change
             
         else:
-            print(time.strftime('%H:%M:%S - Speech engine not initalized. No reading.'))
+            self.logger.warning('Speech engine not initalized, no reading. Sleeping for {} seconds...'.format(self.SLEEP_TIME))
             time.sleep(self.SLEEP_TIME)
     
     def onWord(self, name, location, length):  # @UnusedVariable
@@ -588,7 +604,7 @@ class VoiceAtis(object):
     
     def getAirportInfos(self):
         self.airportInfos = {}
-        with open(os.path.join(os.path.dirname(self.srcDir),'airports.info')) as aptInfoFile:
+        with open(os.path.join(self.rootDir,'airports.info')) as aptInfoFile:
             for li in aptInfoFile:
                 lineSplit = li.split(',')
                 self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]))
@@ -615,12 +631,29 @@ class VoiceAtis(object):
         metarEnd = metarText.find('\n',metarStart)
         
         return metarText[metarStart:metarEnd]
+    
+    ## Initializes the logger.
+    def initLogging(self):
+        # Init logger object
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.DEBUG)
         
+        # Specify formatter.
+        formatter = logging.Formatter('%(asctime)s - %(levelname).1s - %(message)s','%H:%M:%S')
+        
+        # Specify console output.
+        ch = logging.StreamHandler()
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
+        
+        # Specify logfile stream.
+        logPath = os.path.join(self.rootDir,'logs')
+        if not os.path.isdir(logPath):
+            os.makedirs(logPath)
+        fh = logging.FileHandler(os.path.join(logPath,time.strftime('%y%m%d-%H%M%S.log')))
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
     
 if __name__ == '__main__':
-    
-#     string = 'foo 123 bar 234 foo 1.23 bar 30.04'
-#     print(parseVoiceString(string))
-    
     voiceAtis = VoiceAtis()
     pass
