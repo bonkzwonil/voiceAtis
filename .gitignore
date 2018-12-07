@@ -1,13 +1,17 @@
 # compiled python files
 *.pyc
 
+# log folder
+/logs
+
 # Eclipse project files
 .project
 .pydevproject
 .settings/
 
-# Downloaded whazzup.txt.gz
+# Files loaded from IVAO
 *whazzup.txt.gz
+*whazzup_metar.txt
 
 # other
 *test.py
