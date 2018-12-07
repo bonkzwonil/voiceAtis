@@ -33,6 +33,9 @@ Reads an ATIS from IVAO using voice generation
    * The airport is in the list of approved airports (airports.info)
    * Fell free to help me by providing frequencies of missing airports!
 
+## Bugs and issues
+* Please report bugs via the github issues tab.
+** It is usefull to attach the logfile from "root/logs".
 
 ## Used packages and Copyright
 ### python-metar
