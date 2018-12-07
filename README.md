@@ -35,7 +35,7 @@ Reads an ATIS from IVAO using voice generation
 
 ## Bugs and issues
 * Please report bugs via the github issues tab.
-** It is usefull to attach the logfile from "root/logs".
+    * It is usefull to attach the logfile from "root/logs".
 
 ## Used packages and Copyright
 ### python-metar
