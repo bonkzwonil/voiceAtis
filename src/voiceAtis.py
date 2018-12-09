@@ -25,6 +25,7 @@ import time
 import urllib
 import gzip
 import logging
+# import gtts
 
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
@@ -170,6 +171,19 @@ class VoiceAtis(object):
         else:
             self.pyuipcConnection = None
             self.logger.warning('Using voiceAtis without FSUIPC.')
+        
+        
+#         if pyttsxImported:
+#             self.logger.debug('Starting voice engine initialization.')
+#              
+#             # Init voice engine.
+#             self.engine = pyttsx.init()
+#              
+#             # Set properties.
+#             self.engine.setProperty('voice', self.ENGLISH_VOICE)
+#             self.engine.setProperty('rate', self.SPEECH_RATE)
+#              
+#             self.logger.debug('Voice engine established.')
         
         # Read file with airport frequencies and coordinates.
         self.getAirportInfos()
@@ -478,28 +492,63 @@ class VoiceAtis(object):
     # Reads the atis string using voice generation.
     def readVoice(self):
         
-        self.logger.info('Start reading: "{}"'.format(self.atisVoice))
+        
         
         # Init currently Reading with None.
         self.currentlyReading = [None,None]
         
         if pyttsxImported:
-            # Init voice engine.
-            self.engine = pyttsx.init()
-            
             # Set properties currently reading
             self.currentlyReading[0] = self.airport
             self.currentlyReading[1] = self.com2frequency
             
+            # Init voice engine.
+            self.engine = pyttsx.init()
+               
             # Set properties.
-            self.engine.setProperty('voice', self.ENGLISH_VOICE)
+            voices = self.engine.getProperty('voices')
+            for vo in voices:
+                if 'english' in vo.name.lower():
+                    self.engine.setProperty('voice', vo.id)
+                    self.logger.debug('Using voice: {}'.format(vo.name))
+                    break
+                 
+#             self.engine.setProperty('voice', self.ENGLISH_VOICE)
             self.engine.setProperty('rate', self.SPEECH_RATE)
-            
+             
             # Start listener and loop.
             self.engine.connect('started-word', self.onWord)
+             
+
+#             # Say information
+#             self.engine.say(self.informationVoice)
+#             self.logger.info('Start reading: "{}"'.format(self.informationVoice))
+#             self.engine.runAndWait()
+#             
+#             # Say metar
+#             self.engine.say(self.metarVoice)
+#             self.logger.info('Start reading: "{}"'.format(self.metarVoice))
+#             self.engine.runAndWait()
+#             
+#             # Say rwy info
+#             self.engine.say(self.rwyVoice)
+#             self.logger.info('Start reading: "{}"'.format(self.rwyVoice))
+#             self.engine.runAndWait()
+#             
+#             # Say out
+#             outVoice = 'Information {}, out.'.format(self.informationIdentifier)
+#             self.engine.say(outVoice)
+#             self.logger.info('Start reading: "{}"'.format(outVoice))
+#             self.engine.runAndWait()
+
+
+            # Say complete ATIS
             self.engine.say(self.atisVoice)
+            self.logger.info('Start reading: "{}"'.format(self.atisVoice))
             self.engine.runAndWait()
             self.engine = None #TODO: Test if it works properly on frequency change
+             
+#             gtts.gTTS(self.atisVoice,lang='en')
             
         else:
             self.logger.warning('Speech engine not initalized, no reading. Sleeping for {} seconds...'.format(self.SLEEP_TIME))

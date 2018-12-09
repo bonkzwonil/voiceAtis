@@ -1,2 +1,2 @@
 cd src
-python voiceAtis.py
+"C:\Python27\python.exe" voiceAtis.py
