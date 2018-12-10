@@ -25,7 +25,6 @@ import time
 import urllib
 import gzip
 import logging
-# import gtts
 
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
@@ -229,6 +228,7 @@ class VoiceAtis(object):
                     self.parseVoiceMetar()
                     
                     # Parse atis voice with metar only.
+                    #TODO: Replace Code by full name.
                     self.atisVoice = '{} {} {} {}, {}.'.format(parseVoiceChars(self.airport[0]),
                                                                parseVoiceChars(self.airport[1]),
                                                                parseVoiceChars(self.airport[2]),
@@ -319,8 +319,6 @@ class VoiceAtis(object):
             self.atisRaw = stationInfo[35].encode('iso-8859-15').split('^§')
         else:
             self.atisRaw = None
-        
-        
     
     
     ## Parse runway and transition data.
@@ -491,9 +489,6 @@ class VoiceAtis(object):
     
     # Reads the atis string using voice generation.
     def readVoice(self):
-        
-        
-        
         # Init currently Reading with None.
         self.currentlyReading = [None,None]
         
@@ -546,9 +541,7 @@ class VoiceAtis(object):
             self.engine.say(self.atisVoice)
             self.logger.info('Start reading: "{}"'.format(self.atisVoice))
             self.engine.runAndWait()
-            self.engine = None #TODO: Test if it works properly on frequency change
-             
-#             gtts.gTTS(self.atisVoice,lang='en')
+            self.engine = None
             
         else:
             self.logger.warning('Speech engine not initalized, no reading. Sleeping for {} seconds...'.format(self.SLEEP_TIME))
