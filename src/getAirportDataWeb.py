@@ -22,7 +22,11 @@ from __future__ import division
 
 import os
 import re
+import time
 import urllib2
+from contextlib import closing
+
+startTime = time.time()
 
 AP_URL = 'http://ourairports.com/data/airports.csv'
 AP_FREQ_URL = 'http://ourairports.com/data/airport-frequencies.csv'
@@ -31,13 +35,13 @@ apInfoPath = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 airports = {}
 airportFreqs = {}
 
-with urllib2.urlopen(AP_FREQ_URL) as apFreqFile:
+with closing(urllib2.urlopen(AP_FREQ_URL)) as apFreqFile:
     for li in apFreqFile:
         lineSplit = li.split(',')
         if lineSplit[3] == '"ATIS"':
             airportFreqs[lineSplit[2].replace('"','')] = float(lineSplit[-1].replace('\n',''))
 
-with urllib2.urlopen(AP_URL) as apFile:
+with closing(urllib2.urlopen(AP_URL)) as apFile:
     for li in apFile:
         lineSplit = re.split((",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"),li)
             
