@@ -11,27 +11,26 @@ Reads an ATIS from IVAO using voice generation
 
 
 ## Installation
-* Get the latest version of atisVoice
- https://github.com/Sowintuu/voiceAtis.git
-* Get the latest python 2.7 from here: [Python releases](https://www.python.org/downloads/)
+* Get the latest version of atisVoice: `git clone https://github.com/Sowintuu/voiceAtis.git`
+* Get the latest python 2.7 ([Python releases](https://www.python.org/downloads/))
 * Install pyuipc
    * Download [FSUIPC SDK](http://fsuipc.simflight.com/beta/FSUIPC_SDK.zip)
    * Inside this zip-file run `UIPC_SDK_Python.zip\pyuipc-0.3.win32-py2.7.msi`
 * Get pyttsx
-   * Open a command windows in the Python-Script folder
+   * Open a command window in the Python-Script folder
    * Run `pip install pyttsx`
 
 ## Usage
 * Start the script "voiceAtis.py"
-   * If you would like to see the command output, open it from console.
+   * If you would like to see the command output, open it from console. `python voiceAtis.py`
 
 * Start your sim and start a flight.
-* Turn in the ATIS frequency of the airport where you are parking.
+* Tune the ATIS frequency of the airport where you are parking.
    * Don't forget to activate receive mode of the radio (COM1 or COM2)
 * You should hear the ATIS now, if:
    * There is an ATC station online at this airport (TWR, APP, GND or DEL)
-   * The airport is in the list of approved airports (airports.info)
-   * Fell free to help me by providing frequencies of missing airports!
+   * The airport is in the list of airports with ATIS (airports.info)
+   * Feel free to help me by providing frequencies of missing airports!
 
 ## Bugs and issues
 * Please report bugs via the github issues tab.
@@ -83,6 +82,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 ### pyuipc - FSUIPC SDK for Python
+Used to get the com frequencies, com status, aircraft coordinates from the simulator.
+
 All Copyright - Peter Dowson and István Váradi.
 
 ### [ourairports.com](http://ourairports.com)
