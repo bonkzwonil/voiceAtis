@@ -39,6 +39,7 @@ Reads an ATIS from IVAO using voice generation
 
 ## Used packages and Copyright
 ### python-metar
+Used to parse the metar contained in the ATIS.
 
 Copyright (c) 2004-2018, Tom Pollard
 All rights reserved.
@@ -64,6 +65,7 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ### pyttsx
+Text-to-speech package for python. Used to read the parsed ATIS string.
 
 pyttsx Copyright (c) 2009, 2013 Peter Parente
 
@@ -81,5 +83,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 ### pyuipc - FSUIPC SDK for Python
-
 All Copyright - Peter Dowson and István Váradi.
+
+### [ourairports.com](http://ourairports.com)
+OurAirports is a free site where visitors can explore the world's airports, read other people's comments, and leave their own. The help pages have information to get you started.
+
+The site is dedicated to both passengers and pilots. You can create a map of the airports you've visited and share that map with friends. You can find the closest airports to you, and discover the ones that you haven't visited yet.
+
+Behind the fun and features, OurAirports exists primarily as a public good. When Australia forced the US government to shut down public access to its Digital Aeronautical Flight Information File (DAFIF) service in 2006, there was no longer a good source of global aviation data. OurAirports started in 2007 primarily to fill that gap: we encourage members to create and maintain data records for airports around the world, and they manage over 40,000 of them. Many web sites, smartphone apps, and other services rely on OurAirport's data, which is all in the Public Domain (no permission required).
+
+See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
