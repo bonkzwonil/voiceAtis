@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from src import __version__
 
 with open("README.md", "r") as fh:
@@ -13,7 +13,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Sowintuu/voiceAtis",
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",
