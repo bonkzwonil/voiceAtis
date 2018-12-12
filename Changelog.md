@@ -1,4 +1,8 @@
 # Changelog
+## version 0.0.4 - 12.12.2018
+* Getting airport data from web now (http://ourairports.com)
+    * Option to add additional data
+
 ## version 0.0.3 - 07.12.2018
 * Now using metar if no ATIS available
 * pyuipc tested and running
