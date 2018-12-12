@@ -1,14 +1,12 @@
 # voiceAtis
 Reads an ATIS from IVAO using voice generation
 
-
 ## Requirements
 * Python 2.7 - 32 bit (due to pyuipc incompatibility with Python 3 and 64 bit)
 * pyuipc
 * pyttsx
 * XPlane with XPUIPC or MFS, P3D with FSUIPC
 * Windows (Linux and Mac not tested yet)
-
 
 ## Installation
 * Get the latest version of atisVoice: `git clone https://github.com/Sowintuu/voiceAtis.git`
@@ -20,10 +18,11 @@ Reads an ATIS from IVAO using voice generation
    * Open a command window in the Python-Script folder
    * Run `pip install pyttsx`
 
+An upload to pypi is on my roadmap.
+
 ## Usage
 * Start the script "voiceAtis.py"
    * If you would like to see the command output, open it from console. `python voiceAtis.py`
-
 * Start your sim and start a flight.
 * Tune the ATIS frequency of the airport where you are parking.
    * Don't forget to activate receive mode of the radio (COM1 or COM2)
@@ -32,9 +31,19 @@ Reads an ATIS from IVAO using voice generation
    * The airport is in the list of airports with ATIS (airports.info)
    * Feel free to help me by providing frequencies of missing airports!
 
+## Custom airport data
+Airport data is downloaded from [ourairports.com](http://ourairports.com). You can see these data at `airports.info` file at main directory. It may happen that this data is inaccurate or an airport is missing.
+
+In this case you can add the airport to the `airports_add.info` file. Airports in this file have priority over downloaded data.
+
+You may inform me about wrong data preferably via the Issues tab. I will then include the data in the airports_add.info to distritbute them to all users. I will also inform [ourairports.com](http://ourairports.com) about the missing or wrong data.
+
 ## Bugs and issues
 * Please report bugs via the github issues tab.
     * It is usefull to attach the logfile from "root/logs".
+    
+### Known limitations
+* Not able to parse ATIS created by ivac2
 
 ## Used packages and Copyright
 ### python-metar
@@ -94,3 +103,31 @@ The site is dedicated to both passengers and pilots. You can create a map of the
 Behind the fun and features, OurAirports exists primarily as a public good. When Australia forced the US government to shut down public access to its Digital Aeronautical Flight Information File (DAFIF) service in 2006, there was no longer a good source of global aviation data. OurAirports started in 2007 primarily to fill that gap: we encourage members to create and maintain data records for airports around the world, and they manage over 40,000 of them. Many web sites, smartphone apps, and other services rely on OurAirport's data, which is all in the Public Domain (no permission required).
 
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
+
+## Changelog
+### version 0.0.4 - 12.12.2018
+* Getting airport data from web now (http://ourairports.com)
+    * Option to add additional data
+
+### version 0.0.3 - 07.12.2018
+* Now using metar if no ATIS available
+* pyuipc tested and running
+* Changed RADIO_RANGE to a (realistic) value of 180 nm
+* Implemented logging
+
+### version 0.0.2 - 05.12.2018
+* Implemented wind gusts and variable wind
+* Port to python2 (due to pyuipc)
+* Added pyuipc (untested)
+* Added logic to get airport
+
+### version 0.0.1 - 03.12.2018
+* First version for testing purposes
+* Some Atis feartures missing
+* No pyuipc
+* Voice not tested
+
+## ROADMAP
+* Upload to pypi
+* Random start
+* Get ivac2 atis running
