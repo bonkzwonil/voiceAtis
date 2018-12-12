@@ -13,5 +13,9 @@
 *whazzup.txt.gz
 *whazzup_metar.txt
 
+# airport.info (created by script or user)
+airports.info
+airports_add.info
+
 # other
 *test.py
