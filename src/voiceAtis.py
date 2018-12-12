@@ -188,7 +188,7 @@ class VoiceAtis(object):
 #             self.logger.debug('Voice engine established.')
         
         # Read file with airport frequencies and coordinates.
-        self.getAirportInfos()
+        self.getAirportData()
         
         # Show debug Info
         #TODO: Remove when not needed any more
@@ -231,12 +231,7 @@ class VoiceAtis(object):
                     self.parseVoiceMetar()
                     
                     # Parse atis voice with metar only.
-                    #TODO: Replace Code by full name.
-                    self.atisVoice = '{} {} {} {}, {}.'.format(parseVoiceChars(self.airport[0]),
-                                                               parseVoiceChars(self.airport[1]),
-                                                               parseVoiceChars(self.airport[2]),
-                                                               parseVoiceChars(self.airport[3]),
-                                                               self.metarVoice)
+                    self.atisVoice = '{}, {}.'.format(self.airportInfos[self.airport][3],self.metarVoice)
                     
                     # Read the metar.
                     self.readVoice()
@@ -455,6 +450,7 @@ class VoiceAtis(object):
     
     # Generate a string of the runway information for voice generation.
     def parseVoiceRwy(self):
+        #TODO: Convert "L/C/R" to "left/center/right"
         self.rwyVoice = ''
         
         # ARR.
@@ -494,6 +490,8 @@ class VoiceAtis(object):
     def readVoice(self):
         # Init currently Reading with None.
         self.currentlyReading = [None,None]
+        
+        self.logger.debug('Voice Text is: {}'.format(self.atisVoice))
         
         if pyttsxImported:
             # Set properties currently reading
@@ -542,7 +540,7 @@ class VoiceAtis(object):
 
             # Say complete ATIS
             self.engine.say(self.atisVoice)
-            self.logger.info('Start reading: "{}"'.format(self.atisVoice))
+            self.logger.info('Start reading.')
             self.engine.runAndWait()
             self.engine = None
             
@@ -626,9 +624,8 @@ class VoiceAtis(object):
             for li in aptInfoFile:
                 if li.startswith('#'):
                     continue
-                lineSplit = li.split(';')
-                self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]),lineSplit[4])
-    
+                lineSplit = re.split('[,;]',li)
+                self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]),lineSplit[4].replace('\n',''))
     
     ## Read data of airports from http://ourairports.com
     def getAirportDataWeb(self):
@@ -636,7 +633,7 @@ class VoiceAtis(object):
         airportFreqs = {}
         
         # Read the file with frequency.
-        with urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airport-frequencies.csv') as apFreqFile:
+        with urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airport-frequencies.csv', timeout=5) as apFreqFile:
             for li in apFreqFile:
                 lineSplit = li.split(',')
                 if lineSplit[3] == '"ATIS"':
@@ -667,12 +664,13 @@ class VoiceAtis(object):
             
         except:
             # If this fails, use the airports from airports.info.
+            self.logger.warning('Unable to get airport data from web. Using airports.info')
             self.airportInfos = {}
-            if os.path.isfile(os.path.join(self.rootDir,'airports.info')):
+            collectedFromWeb = False
+            try:
                 self.getAirportDataFile(os.path.join(self.rootDir,'airports.info'))
-                collectedFromWeb = False
-            else:
-                raise(Exception,'Unable to read airport data!')
+            except:
+                self.logger.error('Unable to read airport data from airports.info!')
         
         # Sort airportInfos and write them to a file for future use if collected from web.
         if collectedFromWeb:
