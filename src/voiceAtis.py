@@ -27,6 +27,9 @@ import urllib2
 import gzip
 import logging
 
+reload(sys)  
+sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
+
 sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
 try:
@@ -142,11 +145,13 @@ class VoiceAtis(object):
     
     OUR_AIRPORTS_URL = 'http://ourairports.com/data/'
     
-#     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
-    COM1_FREQUENCY_DEBUG = 199.99
+    COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
+#     COM1_FREQUENCY_DEBUG = 199.99
     COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
-    LAT_DEBUG = 48.687  # EDDS
-    LON_DEBUG = 9.205   # EDDS
+#     LAT_DEBUG = 48.687  # EDDS
+#     LON_DEBUG = 9.205   # EDDS
+    LAT_DEBUG = 48.353  # EDDM
+    LON_DEBUG = 11.786  # EDDM
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
     
     ## Setup the VoiceAtis object.
@@ -225,8 +230,11 @@ class VoiceAtis(object):
                 self.parseWhazzupText()
                 
                 # Actions, if no station online.
-                if self.atisRaw is None:
-                    self.logger.info('No station online, using metar only.')
+                if self.atisRaw is None or self.ivac2:
+                    if self.atisRaw is None:
+                        self.logger.info('No station online, using metar only.')
+                    else:
+                        self.logger.warning('ATIS created by ivac 2 not supported yet')
                     self.metar = Metar(self.getAirportMetar(),strict=False)
                     self.parseVoiceMetar()
                     
@@ -247,7 +255,7 @@ class VoiceAtis(object):
                     pass
 #                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
 #                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
-#                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+                    self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
 #                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
                 ##### DEBUG END #####
                 
@@ -272,7 +280,7 @@ class VoiceAtis(object):
                     # Compose complete atis voice string.
                     self.atisVoice = '{}. {}. {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.informationIdentifier)
                 
-                # Read the string (ivac 1 and 2).
+                # Read the string (ivac 1 and 2 (as soon as implemented)).
                 self.readVoice()
                 
         except KeyboardInterrupt:
@@ -365,7 +373,6 @@ class VoiceAtis(object):
     # Generate a string of the metar for voice generation.
     def parseVoiceMetar(self):
         self.metarVoice = 'Met report'
-        #TODO: Test with many possible METARs
         
         # Time
         hours = parseVoiceInt('{:02d}'.format(self.metar._hour))
@@ -394,6 +401,8 @@ class VoiceAtis(object):
         
         # runway visual range
         if self.metar.runway_visual_range():
+#             rvr = self.metar.runway_visual_range().replace(';', ',').replace()
+            #TODO: Convert "L/C/R" to "left/center/right"
             self.metarVoice = '{}, visual range {}'.format(self.metarVoice,self.metar.runway_visual_range().replace(';', ','))
         
         # weather phenomena
@@ -450,7 +459,6 @@ class VoiceAtis(object):
     
     # Generate a string of the runway information for voice generation.
     def parseVoiceRwy(self):
-        #TODO: Convert "L/C/R" to "left/center/right"
         self.rwyVoice = ''
         
         # ARR.
@@ -566,7 +574,6 @@ class VoiceAtis(object):
             results = pyuipc.read(self.pyuipcOffsets)
         
             # frequency
-            #TODO: Test decode from BCD to float
             hexCode = hex(results[0])[2:]
             self.com1frequency = float('1{}.{}'.format(hexCode[0:2],hexCode[2:]))
             hexCode = hex(results[1])[2:]
