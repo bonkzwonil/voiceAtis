@@ -108,6 +108,8 @@ See the [Credits](http://ourairports.com/about.html#credits) for a list of contr
 ### version 0.0.4 - 12.12.2018
 * Getting airport data from web now (http://ourairports.com)
     * Option to add additional data
+* Reading airport name now instead of airport code in metar only mode
+* Added warning message receiving ivac 2 ATIS
 
 ### version 0.0.3 - 07.12.2018
 * Now using metar if no ATIS available
