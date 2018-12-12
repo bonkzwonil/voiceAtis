@@ -23,6 +23,7 @@ import sys
 import re
 import time
 import urllib
+import urllib2
 import gzip
 import logging
 
@@ -40,7 +41,7 @@ try:
 except ImportError:
         pyuipcImported = False
         debug = True
-from metar.Metar import Metar  # @UnresolvedImport
+from metar.Metar import Metar
 
 import avFormula
 
@@ -138,6 +139,8 @@ class VoiceAtis(object):
     
     WHAZZUP_URL = 'http://api.ivao.aero/getdata/whazzup/whazzup.txt.gz'
     WHAZZUP_METAR_URL = 'http://wx.ivao.aero/metar.php'
+    
+    OUR_AIRPORTS_URL = 'http://ourairports.com/data/'
     
 #     COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
     COM1_FREQUENCY_DEBUG = 199.99
@@ -560,7 +563,7 @@ class VoiceAtis(object):
     
     ## Reads current frequency and COM2 status.
     def getPyuipcData(self):
-        #TODO: Test pyuipc
+        
         if pyuipcImported:
             results = pyuipc.read(self.pyuipcOffsets)
         
@@ -572,6 +575,7 @@ class VoiceAtis(object):
             self.com2frequency = float('1{}.{}'.format(hexCode[0:2],hexCode[2:]))
             
             # radio active
+            #TODO: Test accuracy of this data (with various planes)
             radioActiveBits = list(map(int, '{0:08b}'.format(results[2])))
             if radioActiveBits[2]:
                 self.com1active = True
@@ -616,22 +620,79 @@ class VoiceAtis(object):
                     self.airport = ap
     
     
-    def getAirportInfos(self):
-        self.airportInfos = {}
-        with open(os.path.join(self.rootDir,'airports.info')) as aptInfoFile:
+    ## Read data of airports from a given file
+    def getAirportDataFile(self,apFile):
+        with open(apFile) as aptInfoFile:
             for li in aptInfoFile:
+                if li.startswith('#'):
+                    continue
+                lineSplit = li.split(';')
+                self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]),lineSplit[4])
+    
+    
+    ## Read data of airports from http://ourairports.com
+    def getAirportDataWeb(self):
+        
+        airportFreqs = {}
+        
+        # Read the file with frequency.
+        with urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airport-frequencies.csv') as apFreqFile:
+            for li in apFreqFile:
                 lineSplit = li.split(',')
-                self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]))
-
-
+                if lineSplit[3] == '"ATIS"':
+                    airportFreqs[lineSplit[2].replace('"','')] = float(lineSplit[-1].replace('\n',''))
+        
+        # Read the file with other aiport data.
+        # Add frequency and write them to self. airportInfos.
+        with urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airports.csv') as apFile:
+            for li in apFile:
+                lineSplit = re.split((",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"),li)
+                    
+                apCode = lineSplit[1].replace('"','')
+                if apCode in airportFreqs and len(apCode) <= 4:
+                    apFreq = airportFreqs[apCode]
+                    if 100.0 < apFreq < 140.0:
+                        self.airportInfos[apCode] = [apFreq,float(lineSplit[4]),float(lineSplit[5]),lineSplit[3].replace('"','')]
+        
+        
+    # Reads airportData from two sources.
+    def getAirportData(self):
+        self.airportInfos = {}
+        
+        try:
+            # Try to read airport data from web.
+            self.getAirportDataWeb()
+            self.getAirportDataFile(os.path.join(self.rootDir,'airports_add.info'))
+            collectedFromWeb = True
+            
+        except:
+            # If this fails, use the airports from airports.info.
+            self.airportInfos = {}
+            if os.path.isfile(os.path.join(self.rootDir,'airports.info')):
+                self.getAirportDataFile(os.path.join(self.rootDir,'airports.info'))
+                collectedFromWeb = False
+            else:
+                raise(Exception,'Unable to read airport data!')
+        
+        # Sort airportInfos and write them to a file for future use if collected from web.
+        if collectedFromWeb:
+            apInfoPath = os.path.join(self.rootDir,'airports.info')
+            apList = self.airportInfos.keys()
+            apList.sort()
+            with open(apInfoPath,'w') as apDataFile:
+                for ap in apList:
+                    apDataFile.write('{:>4}; {:6.2f}; {:11.6f}; {:11.6f}; {}\n'.format(ap,self.airportInfos[ap][0],self.airportInfos[ap][1],self.airportInfos[ap][2],self.airportInfos[ap][3]))
+    
+    
     def getInfoIdentifier(self):
         informationPos = re.search('information ',self.atisRaw[1]).end()
         informationSplit = self.atisRaw[1][informationPos:].split(' ')
         self.informationIdentifier = informationSplit[0]
         pass
     
+    
     def getAirportMetar(self):
-        #TODO: Test without debug mode.
+        
         if not debug:
             urllib.urlretrieve(self.WHAZZUP_METAR_URL, 'whazzup_metar.txt')
             
@@ -645,6 +706,7 @@ class VoiceAtis(object):
         metarEnd = metarText.find('\n',metarStart)
         
         return metarText[metarStart:metarEnd]
+    
     
     ## Initializes the logger.
     def initLogging(self):
@@ -667,6 +729,7 @@ class VoiceAtis(object):
         fh = logging.FileHandler(os.path.join(logPath,time.strftime('%y%m%d-%H%M%S.log')))
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
+        
     
 if __name__ == '__main__':
     voiceAtis = VoiceAtis()
