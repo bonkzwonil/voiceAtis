@@ -44,7 +44,7 @@ try:
 except ImportError:
         pyuipcImported = False
         debug = True
-from metar.Metar import Metar
+from metar.Metar import Metar  # @UnresolvedImport
 
 import avFormula
 

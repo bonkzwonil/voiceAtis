@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
-from src import __version__
+from src import __version__, name
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="voiceAtis",
-    version="0.0.1",
+    name=name,
+    version=__version__,
     author="Oliver Clemens",
     author_email="sowintuu@aol.com",
     description="Reads an ATIS from IVAO using voice generation.",

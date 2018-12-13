@@ -1,7 +1,7 @@
-__name__ = "voiceAtis"
+name = "voiceAtis"
 
 __author__ = "Oliver Clemens"
 
 __email__ = "sowintuu@aol.com"
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
