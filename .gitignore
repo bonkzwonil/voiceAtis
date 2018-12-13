@@ -1,21 +1,22 @@
 # compiled python files
 *.pyc
 
-# log folder
-/logs
+# Build folders
+*egg-info*
+\build
+\dist
 
 # Eclipse project files
 .project
 .pydevproject
 .settings/
 
+# test file
+*test.py
+
+# log folder
+/logs
+
 # Files loaded from IVAO
 *whazzup.txt.gz
 *whazzup_metar.txt
-
-# airport.info (created by script or user)
-airports.info
-airports_add.info
-
-# other
-*test.py
