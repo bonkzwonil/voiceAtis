@@ -48,6 +48,19 @@ from metar.Metar import Metar  # @UnresolvedImport
 
 from aviationFormula import gcDistanceNm
 
+
+CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
+              'D' : 'DELTA',    'E' : 'ECHO',       'F' : 'FOXTROTT',
+              'G' : 'GOLF',     'H' : 'HOTEL',      'I' : 'INDIA',
+              'J' : 'JULIETT',  'K' : 'KILO',       'L' : 'LIMA',
+              'M' : 'MIKE',     'N' : 'NOVEMBER',   'O' : 'OSCAR',
+              'P' : 'PAPA',     'Q' : 'QUEBEC',     'R' : 'ROMEO',
+              'S' : 'SIERRA',   'T' : 'TANGO',      'U' : 'UNIFORM',
+              'V' : 'VICTOR',   'W' : 'WHISKEY',    'X' : 'XRAY',
+              'Y' : 'YANKEE',   'Z' : 'ZULU'}
+
+
+
 ## Sperates integer Numbers with whitespace
 # Needed for voice generation to be pronounced properly.
 # Also replaces - by 'minus'
@@ -105,15 +118,6 @@ def parseVoiceString(string):
 
 ## Splits a string at each char and replaces them with ICAO-alphabet.
 def parseVoiceChars(string):
-    CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
-                  'D' : 'DELTA',    'E' : 'ECHO',       'F' : 'FOXTROTT',
-                  'G' : 'GOLF',     'H' : 'HOTEL',      'I' : 'INDIA',
-                  'J' : 'JULIETT',  'K' : 'KILO',       'L' : 'LIMA',
-                  'M' : 'MIKE',     'N' : 'NOVEMBER',   'O' : 'OSCAR',
-                  'P' : 'PAPA',     'Q' : 'QUEBEC',     'R' : 'ROMEO',
-                  'S' : 'SIERRA',   'T' : 'TANGO',      'U' : 'UNIFORM',
-                  'V' : 'VICTOR',   'W' : 'WHISKEY',    'X' : 'XRAY',
-                  'Y' : 'YANKEE',   'Z' : 'ZULU'}
         
     stringSep = ''
     for k in string:
@@ -152,6 +156,7 @@ class VoiceAtis(object):
 #     COM2_FREQUENCY_DEBUG = 126.12
 #     LAT_DEBUG = 48.687
 #     LON_DEBUG = 9.205
+
     # EDDM
 #     COM2_FREQUENCY_DEBUG = 123.12
 #     LAT_DEBUG = 48.353
@@ -252,7 +257,7 @@ class VoiceAtis(object):
                 ####### DEBUG #######
                 if debug:
                     pass
-                    self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+#                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
 #                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
 #                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
 #                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
@@ -274,10 +279,14 @@ class VoiceAtis(object):
                     self.parseVoiceRwy()
                     
                     # Compose complete atis voice string.
-                    self.atisVoice = '{}. {}. {} {}. Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.atisRaw[4],self.informationIdentifier)
+                    self.atisVoice = '{} {}. {} {}. Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.atisRaw[4],self.informationIdentifier)
                 
                 else:
+                    self.getInfoIdentifier()
+                    self.parseVoiceInformation()
                     
+                    self.metar = Metar(self.atisRaw[7].replace('METAR ','').strip(),strict=False)
+                    self.parseVoiceMetar()
                 
                 # Read the string (ivac 1 and 2 (as soon as implemented)).
                 self.readVoice()
@@ -465,12 +474,21 @@ class VoiceAtis(object):
     
     # Generate a string of the information identifier for voice generation.
     def parseVoiceInformation(self):
-        timeMatch = re.search(r'\d{4}z',self.atisRaw[1])
-        startInd = timeMatch.start()
-        endInd = timeMatch.end()- 1
-        timeStr = parseVoiceInt(self.atisRaw[1][startInd:endInd])
+        if not self.ivac2:
+            timeMatch = re.search(r'\d{4}z',self.atisRaw[1])
+            startInd = timeMatch.start()
+            endInd = timeMatch.end()- 1
+            timeStr = parseVoiceInt(self.atisRaw[1][startInd:endInd])
+            
+            self.informationVoice = '{} {} Zulu.'.format(self.atisRaw[1][0:startInd-1],timeStr)
         
-        self.informationVoice = '{} {} Zulu'.format(self.atisRaw[1][0:startInd-1],timeStr)
+        else:
+            information = self.atisRaw[1].split(' ')
+            airport = information[0]
+            airport = self.airportInfos[airport][3]
+            time = parseVoiceInt(information[4][0:4])
+            
+            self.informationVoice = '{} Information {} recorded at {} Zulu.'.format(airport,self.informationIdentifier,time)
     
     
     # Generate a string of the runway information for voice generation.
@@ -706,11 +724,14 @@ class VoiceAtis(object):
     
     
     def getInfoIdentifier(self):
-        informationPos = re.search('information ',self.atisRaw[1]).end()
-        informationSplit = self.atisRaw[1][informationPos:].split(' ')
-        self.informationIdentifier = informationSplit[0]
-        pass
-    
+        if not self.ivac2:
+            informationPos = re.search('information ',self.atisRaw[1]).end()
+            informationSplit = self.atisRaw[1][informationPos:].split(' ')
+            infoId = informationSplit[0]
+        else:
+            infoId = re.findall(r'(?<=ATIS )[A-Z](?= \d{4})',self.atisRaw[1])[0]
+            
+        self.informationIdentifier = CHAR_TABLE[infoId]
     
     def getAirportMetar(self):
         
