@@ -619,7 +619,7 @@ class VoiceAtis(object):
         if frequencies:
             distanceMin = self.RADIO_RANGE + 1
             for ap in self.airportInfos:
-                distance = avFormula.gcDistanceNm(self.lat, self.airportInfos[ap][1], self.lon, self.airportInfos[ap][2])
+                distance = avFormula.gcDistanceNm(self.lat, self.lon, self.airportInfos[ap][1], self.airportInfos[ap][2])
                 if self.airportInfos[ap][0] in frequencies and distance < self.RADIO_RANGE and distance < distanceMin:
                     distanceMin = distance
                     self.airport = ap
