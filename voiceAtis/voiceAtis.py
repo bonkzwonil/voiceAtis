@@ -18,6 +18,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #==============================================================================
 
+from __future__ import division
+
 import os
 import sys
 import re
@@ -26,6 +28,8 @@ import urllib
 import urllib2
 import gzip
 import logging
+from contextlib import closing
+from math import floor
 
 reload(sys)  
 sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
@@ -46,7 +50,7 @@ except ImportError:
         debug = True
 from metar.Metar import Metar  # @UnresolvedImport
 
-from aviationFormula import gcDistanceNm
+from aviationFormula.aviationFormula import gcDistanceNm
 
 
 CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
@@ -127,8 +131,6 @@ def parseVoiceChars(string):
 
 class VoiceAtis(object):
     
-    ENGLISH_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
-    GERMAN_VOICE = u'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_DE-DE_HEDDA_11.0'
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
     
     SPEECH_RATE = 150
@@ -278,8 +280,11 @@ class VoiceAtis(object):
                     self.parseRawRwy1()
                     self.parseVoiceRwy()
                     
+                    # comment.
+                    self.parseVoiceComment()
+                    
                     # Compose complete atis voice string.
-                    self.atisVoice = '{} {}. {} {}. Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.atisRaw[4],self.informationIdentifier)
+                    self.atisVoice = '{} {}. {} {}. Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.commentVoice,self.informationIdentifier)
                 
                 else:
                     self.getInfoIdentifier()
@@ -527,6 +532,11 @@ class VoiceAtis(object):
         if self.rwyInformation[3] is not None:
             self.rwyVoice = '{}Transition altitude {} feet.'.format(self.rwyVoice,self.rwyInformation[3])
             
+    #
+    def parseVoiceComment(self):
+        if not self.ivac2:
+            self.commentVoice = parseVoiceString(self.atisRaw[4])
+    
     
     # Reads the atis string using voice generation.
     def readVoice(self):
@@ -550,8 +560,7 @@ class VoiceAtis(object):
                     self.engine.setProperty('voice', vo.id)
                     self.logger.debug('Using voice: {}'.format(vo.name))
                     break
-                 
-#             self.engine.setProperty('voice', self.ENGLISH_VOICE)
+            
             self.engine.setProperty('rate', self.SPEECH_RATE)
              
             # Start listener and loop.
@@ -654,7 +663,7 @@ class VoiceAtis(object):
             distanceMin = self.RADIO_RANGE + 1
             for ap in self.airportInfos:
                 distance = gcDistanceNm(self.lat, self.lon, self.airportInfos[ap][1], self.airportInfos[ap][2])
-                if self.airportInfos[ap][0] in frequencies and distance < self.RADIO_RANGE and distance < distanceMin:
+                if (floor(self.airportInfos[ap][0]*100)/100) in frequencies and distance < self.RADIO_RANGE and distance < distanceMin:
                     distanceMin = distance
                     self.airport = ap
     
@@ -674,7 +683,7 @@ class VoiceAtis(object):
         airportFreqs = {}
         
         # Read the file with frequency.
-        with urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airport-frequencies.csv', timeout=5) as apFreqFile:
+        with closing(urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airport-frequencies.csv', timeout=5)) as apFreqFile:
             for li in apFreqFile:
                 lineSplit = li.split(',')
                 if lineSplit[3] == '"ATIS"':
@@ -682,7 +691,7 @@ class VoiceAtis(object):
         
         # Read the file with other aiport data.
         # Add frequency and write them to self. airportInfos.
-        with urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airports.csv') as apFile:
+        with closing(urllib2.urlopen(self.OUR_AIRPORTS_URL + 'airports.csv')) as apFile:
             for li in apFile:
                 lineSplit = re.split((",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"),li)
                     
@@ -727,11 +736,10 @@ class VoiceAtis(object):
         if not self.ivac2:
             informationPos = re.search('information ',self.atisRaw[1]).end()
             informationSplit = self.atisRaw[1][informationPos:].split(' ')
-            infoId = informationSplit[0]
+            self.informationIdentifier = informationSplit[0]
         else:
-            infoId = re.findall(r'(?<=ATIS )[A-Z](?= \d{4})',self.atisRaw[1])[0]
-            
-        self.informationIdentifier = CHAR_TABLE[infoId]
+            self.informationIdentifier = CHAR_TABLE[re.findall(r'(?<=ATIS )[A-Z](?= \d{4})',self.atisRaw[1])[0]]
+        
     
     def getAirportMetar(self):
         

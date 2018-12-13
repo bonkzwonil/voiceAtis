@@ -3,4 +3,5 @@
 # Your may add your data like this:
 # Airportcode; frequency (2 decimal digits); latitude (in deg); longitude (in deg); Airport name
 # Example:
-# EDDS; 126.12;   48.689899,    9.221960, Stuttgart Airport
+
+EDDF; 118.03;   50.033333;    8.570556; Frankfurt am Main Airport
