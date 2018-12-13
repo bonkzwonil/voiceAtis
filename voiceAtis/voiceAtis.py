@@ -46,7 +46,7 @@ except ImportError:
         debug = True
 from metar.Metar import Metar  # @UnresolvedImport
 
-import avFormula
+from aviationFormula import gcDistanceNm
 
 ## Sperates integer Numbers with whitespace
 # Needed for voice generation to be pronounced properly.
@@ -180,18 +180,6 @@ class VoiceAtis(object):
             self.logger.warning('Using voiceAtis without FSUIPC.')
         
         
-#         if pyttsxImported:
-#             self.logger.debug('Starting voice engine initialization.')
-#              
-#             # Init voice engine.
-#             self.engine = pyttsx.init()
-#              
-#             # Set properties.
-#             self.engine.setProperty('voice', self.ENGLISH_VOICE)
-#             self.engine.setProperty('rate', self.SPEECH_RATE)
-#              
-#             self.logger.debug('Voice engine established.')
-        
         # Read file with airport frequencies and coordinates.
         self.getAirportData()
         
@@ -255,8 +243,8 @@ class VoiceAtis(object):
                     pass
 #                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
 #                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
-                    self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-#                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+#                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+                    self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
                 ##### DEBUG END #####
                 
                 # Parse ATIS.
@@ -400,10 +388,27 @@ class VoiceAtis(object):
         self.metarVoice = '{}, visibility {}'.format(self.metarVoice,self.metar.vis.string())
         
         # runway visual range
-        if self.metar.runway_visual_range():
-#             rvr = self.metar.runway_visual_range().replace(';', ',').replace()
-            #TODO: Convert "L/C/R" to "left/center/right"
-            self.metarVoice = '{}, visual range {}'.format(self.metarVoice,self.metar.runway_visual_range().replace(';', ','))
+        rvr = self.metar.runway_visual_range().replace(';', ',')
+        if rvr:
+            rvrNew = ''
+            lastEnd = 0
+            rvrPattern = re.compile('[0123]\d[LCR]?(?=,)')
+            for ma in rvrPattern.finditer(rvr):
+                rwyRaw = rvr[ma.start():ma.end()]
+                rwyStr = parseVoiceInt(rwyRaw[0:2])
+                if len(rwyRaw) > 2:
+                    if rwyRaw[2] == 'L':
+                        rwyStr = '{} left'.format(rwyStr)
+                    elif rwyRaw[2] == 'C':
+                        rwyStr = '{} center'.format(rwyStr)
+                    elif rwyRaw[2] == 'R':
+                        rwyStr = '{} right'.format(rwyStr)
+                rvrNew = '{}{}{}'.format(rvrNew,rvr[lastEnd:ma.start()],rwyStr)
+                lastEnd = ma.end()
+            
+            rvrNew = '{}{}'.format(rvrNew,rvr[lastEnd:])
+            
+            self.metarVoice = '{}, visual range {}'.format(self.metarVoice,rvrNew)
         
         # weather phenomena
         if self.metar.weather:
@@ -619,7 +624,7 @@ class VoiceAtis(object):
         if frequencies:
             distanceMin = self.RADIO_RANGE + 1
             for ap in self.airportInfos:
-                distance = avFormula.gcDistanceNm(self.lat, self.lon, self.airportInfos[ap][1], self.airportInfos[ap][2])
+                distance = gcDistanceNm(self.lat, self.lon, self.airportInfos[ap][1], self.airportInfos[ap][2])
                 if self.airportInfos[ap][0] in frequencies and distance < self.RADIO_RANGE and distance < distanceMin:
                     distanceMin = distance
                     self.airport = ap
