@@ -44,6 +44,10 @@ You may inform me about wrong data preferably via the Issues tab. I will then in
     
 ### Known limitations
 * Not able to parse ATIS created by ivac2
+* METAR
+    * No trend
+    * No visibility directions
+    * No runway condition
 
 ## Used packages and Copyright
 ### python-metar
@@ -105,6 +109,10 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.0.5 - 13.12.2018
+* Runway identifier at metar converted correctly
+* Additional ATIS comment parsed for ivac 1
+
 ### version 0.0.4 - 12.12.2018
 * Getting airport data from web now (http://ourairports.com)
     * Option to add additional data
