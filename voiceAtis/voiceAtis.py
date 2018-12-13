@@ -145,13 +145,24 @@ class VoiceAtis(object):
     
     OUR_AIRPORTS_URL = 'http://ourairports.com/data/'
     
-    COM1_FREQUENCY_DEBUG = 123.12 # EDDM_ATIS
-#     COM1_FREQUENCY_DEBUG = 199.99
-    COM2_FREQUENCY_DEBUG = 126.12 # EDDS_ATIS
-#     LAT_DEBUG = 48.687  # EDDS
-#     LON_DEBUG = 9.205   # EDDS
-    LAT_DEBUG = 48.353  # EDDM
-    LON_DEBUG = 11.786  # EDDM
+
+    COM1_FREQUENCY_DEBUG = 199.99
+    
+    # EDDS
+#     COM2_FREQUENCY_DEBUG = 126.12
+#     LAT_DEBUG = 48.687
+#     LON_DEBUG = 9.205
+    # EDDM
+#     COM2_FREQUENCY_DEBUG = 123.12
+#     LAT_DEBUG = 48.353
+#     LON_DEBUG = 11.786
+
+    # LIRF
+    COM2_FREQUENCY_DEBUG = 121.85
+    LAT_DEBUG = 41.8
+    LON_DEBUG = 12.2
+
+
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
     
     ## Setup the VoiceAtis object.
@@ -241,10 +252,10 @@ class VoiceAtis(object):
                 ####### DEBUG #######
                 if debug:
                     pass
-#                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
+                    self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
 #                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
 #                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-                    self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
+#                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
                 ##### DEBUG END #####
                 
                 # Parse ATIS.
@@ -262,11 +273,11 @@ class VoiceAtis(object):
                     self.parseRawRwy1()
                     self.parseVoiceRwy()
                     
-                    # Comment.
-                    #TODO: Implement parsing of comment for ivac 1 and 2.
-                    
                     # Compose complete atis voice string.
-                    self.atisVoice = '{}. {}. {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.informationIdentifier)
+                    self.atisVoice = '{}. {}. {} {}. Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.atisRaw[4],self.informationIdentifier)
+                
+                else:
+                    
                 
                 # Read the string (ivac 1 and 2 (as soon as implemented)).
                 self.readVoice()
