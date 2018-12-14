@@ -30,6 +30,7 @@ import gzip
 import logging
 from contextlib import closing
 from math import floor
+import warnings
 
 reload(sys)  
 sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
@@ -183,6 +184,8 @@ class VoiceAtis(object):
         #TODO: Test switching of frequency properly
         #TODO: Remove the debug code when tested properly
         #TODO: Create installation package
+        #TODO: Implement my own logger.
+        #TODO: Create GUI.
         
         # Get file path.
         self.rootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -222,8 +225,11 @@ class VoiceAtis(object):
                 
                 # Get best suitable Airport.
                 self.getAirport()
+                ####### DEBUG #######
+                #TODO: Remove for release.
 #                 self.airport = 'LIBR'
 #                 self.airportInfos[self.airport] = (199.99, 30.0, 30.0, 'Foo Bar Airport')
+                ##### DEBUG END #####
                 
                 # Handle if no airport found.
                 if self.airport is None:
@@ -248,7 +254,10 @@ class VoiceAtis(object):
                 else:
                     # Actions, if no station online.
                     self.logger.info('No station online, using metar only.')
-                    self.metar = Metar(self.getAirportMetar(),strict=False)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        self.metar = Metar(self.getAirportMetar(),strict=False)
+                    
                     self.parseVoiceMetar()
                     
                     # Parse atis voice with metar only.
@@ -260,16 +269,6 @@ class VoiceAtis(object):
                     time.sleep(self.SLEEP_TIME)
                     continue
                 
-                ####### DEBUG #######
-                #TODO: Remove for release.
-                if debug:
-                    pass
-#                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
-#                     self.atisRaw[2] = 'KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244'
-#                     self.atisRaw[2] = 'METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-#                     self.atisRaw[2] = 'METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987'
-                ##### DEBUG END #####
-                
                 # Parse ATIS.
                 # Information.
                 self.getInfoIdentifier()
@@ -277,12 +276,23 @@ class VoiceAtis(object):
                 
                 # Metar.
                 if not self.ivac2:
-                    self.metar = Metar(self.atisRaw[2].strip(),strict=False)
+                    self.parseMetar(self.atisRaw[2].strip())
                 else:
                     for ar in self.atisRaw:
                         if ar.startswith('METAR'):
-                            self.metar = Metar(ar.replace('METAR ','').strip(),strict=False)
+                            self.parseMetar(ar.replace('METAR ','').strip())
                             break
+                
+                ####### DEBUG #######
+                #TODO: Remove for release.
+                if debug:
+                    pass
+#                     self.parseMetar('EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008')
+#                     self.parseMetar('KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244')
+#                     self.parseMetar('METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987')
+#                     self.parseMetar('METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987')
+                ##### DEBUG END #####
+                
                 self.parseVoiceMetar()
                 
                 # Runways / TRL / TA
@@ -342,6 +352,12 @@ class VoiceAtis(object):
             self.atisRaw = stationInfo[35].encode('iso-8859-15').split('^§')
         else:
             self.atisRaw = None
+    
+    
+    def parseMetar(self,metarString):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.metar = Metar(metarString,strict=False)
     
     
     ## Parse runway and transition data.
