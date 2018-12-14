@@ -434,7 +434,7 @@ class VoiceAtis(object):
                     else:
                         self.rwyInformation[1].append(curRwy)
     
-    # Generate a string of the metar for voice generation.
+    ## Generate a string of the metar for voice generation.
     def parseVoiceMetar(self):
         self.metarVoice = 'Met report'
         
@@ -530,7 +530,7 @@ class VoiceAtis(object):
         
         self.metarVoice = '{},'.format(self.metarVoice)
     
-    # Generate a string of the information identifier for voice generation.
+    ## Generate a string of the information identifier for voice generation.
     def parseVoiceInformation(self):
         if not self.ivac2:
             timeMatch = re.search(r'\d{4}z',self.atisRaw[1])
@@ -549,7 +549,7 @@ class VoiceAtis(object):
             self.informationVoice = '{} Information {} recorded at {} Zulu.'.format(airport,self.informationIdentifier,time)
     
     
-    # Generate a string of the runway information for voice generation.
+    ## Generate a string of the runway information for voice generation.
     def parseVoiceRwy(self):
         self.rwyVoice = ''
         
@@ -585,14 +585,14 @@ class VoiceAtis(object):
         if self.rwyInformation[3] is not None:
             self.rwyVoice = '{}Transition altitude {} feet.'.format(self.rwyVoice,self.rwyInformation[3])
             
-    #
+    ## Generate a string of ATIS comment for voice generation.
     def parseVoiceComment(self):
         if not self.ivac2:
             self.commentVoice = parseVoiceString(self.atisRaw[4])
         else:
             self.commentVoice = ''
     
-    # Reads the atis string using voice generation.
+    ## Reads the atis string using voice generation.
     def readVoice(self):
         # Init currently Reading with None.
         self.currentlyReading = [None,None]
@@ -619,29 +619,6 @@ class VoiceAtis(object):
              
             # Start listener and loop.
             self.engine.connect('started-word', self.onWord)
-             
-
-#             # Say information
-#             self.engine.say(self.informationVoice)
-#             self.logger.info('Start reading: "{}"'.format(self.informationVoice))
-#             self.engine.runAndWait()
-#             
-#             # Say metar
-#             self.engine.say(self.metarVoice)
-#             self.logger.info('Start reading: "{}"'.format(self.metarVoice))
-#             self.engine.runAndWait()
-#             
-#             # Say rwy info
-#             self.engine.say(self.rwyVoice)
-#             self.logger.info('Start reading: "{}"'.format(self.rwyVoice))
-#             self.engine.runAndWait()
-#             
-#             # Say out
-#             outVoice = 'Information {}, out.'.format(self.informationIdentifier)
-#             self.engine.say(outVoice)
-#             self.logger.info('Start reading: "{}"'.format(outVoice))
-#             self.engine.runAndWait()
-
 
             # Say complete ATIS
             self.engine.say(self.atisVoice)
@@ -653,18 +630,21 @@ class VoiceAtis(object):
             self.logger.warning('Speech engine not initalized, no reading. Sleeping for {} seconds...'.format(self.SLEEP_TIME))
             time.sleep(self.SLEEP_TIME)
     
+    ## Callback for stop of reading.
+    # Stops reading if frequency change/com deactivation/out of range.
     def onWord(self, name, location, length):  # @UnusedVariable
         self.getPyuipcData()
         
         com1Reading = self.com1frequency == self.currentlyReading[1] and self.com1active
         com2Reading = self.com2frequency == self.currentlyReading[1] and self.com2active
+        #TODO: Implement stop if too far away.
         
         if not com1Reading and not com2Reading:
             self.engine.stop()
             self.currentlyReading = [None,None]
     
     
-    ## Reads current frequency and COM2 status.
+    ## Reads current frequency and COM status.
     def getPyuipcData(self):
         
         if pyuipcImported:
@@ -677,7 +657,7 @@ class VoiceAtis(object):
             self.com2frequency = float('1{}.{}'.format(hexCode[0:2],hexCode[2:]))
             
             # radio active
-            #TODO: Test accuracy of this data (with various planes)
+            #TODO: Test accuracy of this data (with various planes and sims)
             radioActiveBits = list(map(int, '{0:08b}'.format(results[2])))
             if radioActiveBits[2]:
                 self.com1active = True
@@ -704,7 +684,8 @@ class VoiceAtis(object):
             self.lat = self.LAT_DEBUG
             self.lon = self.LON_DEBUG
 
-
+    
+    ## Determine if there is an airport aplicable for ATIS reading.
     def getAirport(self):
         self.airport = None
         frequencies = []
@@ -722,7 +703,7 @@ class VoiceAtis(object):
                     self.airport = ap
     
     
-    ## Read data of airports from a given file
+    ## Read data of airports from a given file.
     def getAirportDataFile(self,apFile):
         with open(apFile) as aptInfoFile:
             for li in aptInfoFile:
@@ -731,7 +712,7 @@ class VoiceAtis(object):
                 lineSplit = re.split('[,;]',li)
                 self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]),lineSplit[4].replace('\n',''))
     
-    ## Read data of airports from http://ourairports.com
+    ## Read data of airports from http://ourairports.com.
     def getAirportDataWeb(self):
         
         airportFreqs = {}
@@ -756,7 +737,7 @@ class VoiceAtis(object):
                         self.airportInfos[apCode] = [apFreq,float(lineSplit[4]),float(lineSplit[5]),lineSplit[3].replace('"','')]
         
         
-    # Reads airportData from two sources.
+    ## Reads airportData from two sources.
     def getAirportData(self):
         self.airportInfos = {}
         
@@ -786,6 +767,7 @@ class VoiceAtis(object):
                     apDataFile.write('{:>4}; {:6.2f}; {:11.6f}; {:11.6f}; {}\n'.format(ap,self.airportInfos[ap][0],self.airportInfos[ap][1],self.airportInfos[ap][2],self.airportInfos[ap][3]))
     
     
+    ## Determines the info identifier of the loaded ATIS.
     def getInfoIdentifier(self):
         if not self.ivac2:
             informationPos = re.search('information ',self.atisRaw[1]).end()
@@ -795,6 +777,7 @@ class VoiceAtis(object):
             self.informationIdentifier = CHAR_TABLE[re.findall(r'(?<=ATIS )[A-Z](?= \d{4})',self.atisRaw[1])[0]]
         
     
+    ## Retrieves the metar of an airport independet of an ATIS.
     def getAirportMetar(self):
         
         if not debug:
