@@ -50,7 +50,7 @@ except ImportError:
         debug = True
 from metar.Metar import Metar  # @UnresolvedImport
 
-from aviationFormula.aviationFormula import gcDistanceNm
+from aviationFormula import gcDistanceNm
 
 
 CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
@@ -168,6 +168,11 @@ class VoiceAtis(object):
     COM2_FREQUENCY_DEBUG = 121.85
     LAT_DEBUG = 41.8
     LON_DEBUG = 12.2
+    
+    # LIBR
+    COM2_FREQUENCY_DEBUG = 121.85
+    LAT_DEBUG = 41.8
+    LON_DEBUG = 12.2
 
 
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
@@ -202,7 +207,7 @@ class VoiceAtis(object):
         self.getAirportData()
         
         # Show debug Info
-        #TODO: Remove when not needed any more
+        #TODO: Remove for release.
         if debug:
             self.logger.info('Debug mode on.')
         
@@ -217,6 +222,8 @@ class VoiceAtis(object):
                 
                 # Get best suitable Airport.
                 self.getAirport()
+#                 self.airport = 'LIBR'
+#                 self.airportInfos[self.airport] = (199.99, 30.0, 30.0, 'Foo Bar Airport')
                 
                 # Handle if no airport found.
                 if self.airport is None:
@@ -235,12 +242,12 @@ class VoiceAtis(object):
                 # Read whazzup text and get a station.
                 self.parseWhazzupText()
                 
-                # Actions, if no station online.
-                if self.atisRaw is None or self.ivac2:
-                    if self.atisRaw is None:
-                        self.logger.info('No station online, using metar only.')
-                    else:
-                        self.logger.warning('ATIS created by ivac 2 not supported yet')
+                # Check if station online.
+                if self.atisRaw is not None:
+                    self.logger.info('Station found, decoding Atis.')
+                else:
+                    # Actions, if no station online.
+                    self.logger.info('No station online, using metar only.')
                     self.metar = Metar(self.getAirportMetar(),strict=False)
                     self.parseVoiceMetar()
                     
@@ -252,11 +259,9 @@ class VoiceAtis(object):
                     
                     time.sleep(self.SLEEP_TIME)
                     continue
-                else:
-                    self.logger.info('Station found, decoding Atis.')
-                
                 
                 ####### DEBUG #######
+                #TODO: Remove for release.
                 if debug:
                     pass
 #                     self.atisRaw[2] = 'EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008'
@@ -266,35 +271,34 @@ class VoiceAtis(object):
                 ##### DEBUG END #####
                 
                 # Parse ATIS.
-                #TODO: Implement ivac2 stations.
+                # Information.
+                self.getInfoIdentifier()
+                self.parseVoiceInformation()
+                
+                # Metar.
                 if not self.ivac2:
-                    # Information.
-                    self.getInfoIdentifier()
-                    self.parseVoiceInformation()
-                    
-                    # Metar.
                     self.metar = Metar(self.atisRaw[2].strip(),strict=False)
-                    self.parseVoiceMetar()
-                    
-                    # Runways / TRL / TA
-                    self.parseRawRwy1()
-                    self.parseVoiceRwy()
-                    
-                    # comment.
-                    self.parseVoiceComment()
-                    
-                    # Compose complete atis voice string.
-                    self.atisVoice = '{} {}. {} {}. Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.commentVoice,self.informationIdentifier)
-                
                 else:
-                    self.getInfoIdentifier()
-                    self.parseVoiceInformation()
-                    
-                    self.metar = Metar(self.atisRaw[7].replace('METAR ','').strip(),strict=False)
-                    self.parseVoiceMetar()
+                    for ar in self.atisRaw:
+                        if ar.startswith('METAR'):
+                            self.metar = Metar(ar.replace('METAR ','').strip(),strict=False)
+                            break
+                self.parseVoiceMetar()
                 
-                # Read the string (ivac 1 and 2 (as soon as implemented)).
+                # Runways / TRL / TA
+                self.parseRawRwy()
+                self.parseVoiceRwy()
+                
+                # comment.
+                self.parseVoiceComment()
+                
+                # Compose complete atis voice string.
+                self.atisVoice = '{} {} {} {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.commentVoice,self.informationIdentifier)
+                
+                # Read the string.
                 self.readVoice()
+                
+                pass
                 
         except KeyboardInterrupt:
             # Actions at Keyboard Interrupt.
@@ -343,45 +347,76 @@ class VoiceAtis(object):
     ## Parse runway and transition data.
     # Get active runways for arrival and departure.
     # Get transistion level and altitude.
-    def parseRawRwy1(self):
-        strSplit = self.atisRaw[3].split(' / ')
-        
+    def parseRawRwy(self):
         self.rwyInformation = [None,None,None,None]
-        
-        for sp in strSplit:
-            if sp[0:3] == 'ARR':
-                arr = sp.replace('ARR RWY ','').strip().split(' ')
-                self.rwyInformation[0] = []
-                for rwy in arr:
-                    curRwy = [rwy[0:2],None,None,None]
-                    if 'L' in rwy:
-                        curRwy[1] = 'Left'
-                    if 'C' in rwy:
-                        curRwy[2] = 'Center'
-                    if 'R' in rwy:
-                        curRwy[3] = 'Right'
-                    self.rwyInformation[0].append(curRwy)
+        if not self.ivac2:
+            strSplit = self.atisRaw[3].split(' / ')
             
-            elif sp[0:3] == 'DEP':
-                # DEP.
-                dep = strSplit[1].replace('DEP RWY ','').strip().split(' ')
-                self.rwyInformation[1] = []
-                for rwy in dep:
-                    curRwy = [rwy[0:2],None,None,None]
-                    if 'L' in rwy:
-                        curRwy[1] = 'Left'
-                    if 'C' in rwy:
-                        curRwy[2] = 'Center'
-                    if 'R' in rwy:
-                        curRwy[3] = 'Right'
-                    self.rwyInformation[1].append(curRwy)
-                    
-            elif sp[0:3] == 'TRL':
-                self.rwyInformation[2] = sp.strip().replace('TRL FL','')
+            for sp in strSplit:
+                if sp[0:3] == 'ARR':
+                    arr = sp.replace('ARR RWY ','').strip().split(' ')
+                    self.rwyInformation[0] = []
+                    for rwy in arr:
+                        curRwy = [rwy[0:2],None,None,None]
+                        if 'L' in rwy:
+                            curRwy[1] = 'Left'
+                        if 'C' in rwy:
+                            curRwy[2] = 'Center'
+                        if 'R' in rwy:
+                            curRwy[3] = 'Right'
+                        self.rwyInformation[0].append(curRwy)
                 
-            elif sp[0:2] == 'TA':
-                self.rwyInformation[3] = sp.strip().replace('TA ','').replace('FT','')
-
+                elif sp[0:3] == 'DEP':
+                    # DEP.
+                    dep = strSplit[1].replace('DEP RWY ','').strip().split(' ')
+                    self.rwyInformation[1] = []
+                    for rwy in dep:
+                        curRwy = [rwy[0:2],None,None,None]
+                        if 'L' in rwy:
+                            curRwy[1] = 'Left'
+                        if 'C' in rwy:
+                            curRwy[2] = 'Center'
+                        if 'R' in rwy:
+                            curRwy[3] = 'Right'
+                        self.rwyInformation[1].append(curRwy)
+                        
+                elif sp[0:3] == 'TRL':
+                    self.rwyInformation[2] = sp.strip().replace('TRL FL','')
+                    
+                elif sp[0:2] == 'TA':
+                    self.rwyInformation[3] = sp.strip().replace('TA ','').replace('FT','')
+        else:
+            for ar in self.atisRaw:
+                if ar.startswith('TA'):
+                    trlTaSplit = ar.split(' / ')
+                    self.rwyInformation[3] = trlTaSplit[0].replace('TA ','')
+                    self.rwyInformation[2] = trlTaSplit[1].replace('TRL','')
+                    
+                elif ar.startswith('ARR'):
+                    curRwy = [ar[8:10],None,None,None]
+                    if 'L' in ar[8:]:
+                        curRwy[1] = 'Left'
+                    if 'C' in ar[8:]:
+                        curRwy[2] = 'Center'
+                    if 'R' in ar[8:]:
+                        curRwy[3] = 'Right'
+                    if self.rwyInformation[0] is None:
+                        self.rwyInformation[0] = [curRwy]
+                    else:
+                        self.rwyInformation[0].append(curRwy)
+                        
+                elif ar.startswith('DEP'):
+                    curRwy = [ar[8:10],None,None,None]
+                    if 'L' in ar[8:]:
+                        curRwy[1] = 'Left'
+                    if 'C' in ar[8:]:
+                        curRwy[2] = 'Center'
+                    if 'R' in ar[8:]:
+                        curRwy[3] = 'Right'
+                    if self.rwyInformation[1] is None:
+                        self.rwyInformation[1] = [curRwy]
+                    else:
+                        self.rwyInformation[1].append(curRwy)
     
     # Generate a string of the metar for voice generation.
     def parseVoiceMetar(self):
@@ -476,6 +511,8 @@ class VoiceAtis(object):
             self.metarVoice = '{}, Altimeter {}'.format(self.metarVoice,parseVoiceString(self.metar.press.string()))
         
         #TODO: implement trend
+        
+        self.metarVoice = '{},'.format(self.metarVoice)
     
     # Generate a string of the information identifier for voice generation.
     def parseVoiceInformation(self):
@@ -522,7 +559,7 @@ class VoiceAtis(object):
                     for si in dep[1:4]:
                         if si is not None:
                             self.rwyVoice = '{}{} {} and '.format(self.rwyVoice,parseVoiceInt(dep[0]),si)
-            self.rwyVoice = '{}. '.format(self.rwyVoice[0:-5])
+            self.rwyVoice = '{}, '.format(self.rwyVoice[0:-5])
         
         # TRL
         if self.rwyInformation[2] is not None:
@@ -536,7 +573,8 @@ class VoiceAtis(object):
     def parseVoiceComment(self):
         if not self.ivac2:
             self.commentVoice = parseVoiceString(self.atisRaw[4])
-    
+        else:
+            self.commentVoice = ''
     
     # Reads the atis string using voice generation.
     def readVoice(self):
