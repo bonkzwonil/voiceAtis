@@ -28,26 +28,25 @@ An upload to pypi is on my roadmap.
    * Don't forget to activate receive mode of the radio (COM1 or COM2)
 * You should hear the ATIS now, if:
    * There is an ATC station online at this airport (TWR, APP, GND or DEL)
-   * The airport is in the list of airports with ATIS (airports.info)
-   * Feel free to help me by providing frequencies of missing airports!
+   * The airport has an ATIS frequency at [ourairports.com](http://ourairports.com)
 
 ## Custom airport data
 Airport data is downloaded from [ourairports.com](http://ourairports.com). You can see these data at `airports.info` file at main directory. It may happen that this data is inaccurate or an airport is missing.
 
 In this case you can add the airport to the `airports_add.info` file. Airports in this file have priority over downloaded data.
 
-You may inform me about wrong data preferably via the Issues tab. I will then include the data in the airports_add.info to distritbute them to all users. I will also inform [ourairports.com](http://ourairports.com) about the missing or wrong data.
+You may also inform me about wrong data preferably via the Issues tab. I will then enter the data at [ourairports.com](http://ourairports.com) to distritbute them to all users.
 
 ## Bugs and issues
 * Please report bugs via the github issues tab.
     * It is usefull to attach the logfile from "root/logs".
     
 ### Known limitations
-* Not able to parse ATIS created by ivac2
 * METAR
     * No trend
     * No visibility directions
     * No runway condition
+* No comments of ivac 2 atis
 
 ## Used packages and Copyright
 ### python-metar
@@ -109,6 +108,10 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.0.6 - 14.12.2018
+* Implemented parsing of ATIS created with ivac 2
+* Disabled warnings of python-metar
+
 ### version 0.0.5 - 13.12.2018
 * Runway identifier at metar converted correctly
 * Additional ATIS comment parsed for ivac 1
@@ -140,4 +143,3 @@ See the [Credits](http://ourairports.com/about.html#credits) for a list of contr
 ## ROADMAP
 * Upload to pypi
 * Random start
-* Get ivac2 atis running
