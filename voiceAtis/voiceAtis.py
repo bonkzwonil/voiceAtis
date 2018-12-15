@@ -583,12 +583,12 @@ class VoiceAtis(object):
         
         # TA
         if self.rwyInformation[3] is not None:
-            self.rwyVoice = '{}Transition altitude {} feet.'.format(self.rwyVoice,self.rwyInformation[3])
+            self.rwyVoice = '{}Transition altitude {} feet,'.format(self.rwyVoice,self.rwyInformation[3])
             
     ## Generate a string of ATIS comment for voice generation.
     def parseVoiceComment(self):
         if not self.ivac2:
-            self.commentVoice = parseVoiceString(self.atisRaw[4])
+            self.commentVoice = '{},'.format(parseVoiceString(self.atisRaw[4]))
         else:
             self.commentVoice = ''
     
