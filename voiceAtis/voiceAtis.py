@@ -4,18 +4,18 @@
 # voiceAtis - Reads an ATIS from IVAO using voice generation
 # Copyright (C) 2018  Oliver Clemens
 # 
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
 # 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
 # 
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <https://www.gnu.org/licenses/>.
 #==============================================================================
 
 from __future__ import division
@@ -181,10 +181,11 @@ class VoiceAtis(object):
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
     def __init__(self):
-        #TODO: Test switching of frequency properly
-        #TODO: Remove the debug code when tested properly
-        #TODO: Create installation package
+        #TODO: Test switching of frequency properly.
+        #TODO: Remove the debug code when tested properly.
+        #TODO: Create installation package.
         #TODO: Implement my own logger.
+        #TODO: Improve logged messages.
         #TODO: Create GUI.
         
         # Get file path.
@@ -225,11 +226,6 @@ class VoiceAtis(object):
                 
                 # Get best suitable Airport.
                 self.getAirport()
-                ####### DEBUG #######
-                #TODO: Remove for release.
-#                 self.airport = 'LIBR'
-#                 self.airportInfos[self.airport] = (199.99, 30.0, 30.0, 'Foo Bar Airport')
-                ##### DEBUG END #####
                 
                 # Handle if no airport found.
                 if self.airport is None:
@@ -282,16 +278,6 @@ class VoiceAtis(object):
                         if ar.startswith('METAR'):
                             self.parseMetar(ar.replace('METAR ','').strip())
                             break
-                
-                ####### DEBUG #######
-                #TODO: Remove for release.
-                if debug:
-                    pass
-#                     self.parseMetar('EDDL 212150Z 06007KT 4000 W2000 OVC010 02/01 Q1005 R23L/190195 R23R/190195 TEMPO BKN008')
-#                     self.parseMetar('KMIA 041253Z 21004KT 10SM FEW015 FEW050 FEW085 BKN250 24/24 A3004 RMK AO2 SLP171 T02440244')
-#                     self.parseMetar('METAR KEWR 111851Z VRB03G19KT 2SM R04R/3000VP6000FT TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987')
-#                     self.parseMetar('METAR KEWR 111851Z 25003G19KT 210V290 2SM R04R/3000VP6000FT R04L/0225U TSRA BR FEW015 BKN040CB BKN065 OVC200 22/22 A2987')
-                ##### DEBUG END #####
                 
                 self.parseVoiceMetar()
                 
@@ -349,6 +335,7 @@ class VoiceAtis(object):
             lineEnd = self.whazzupText.find('\n',matchObj.start())
             stationInfo = self.whazzupText[lineStart:lineEnd].split(':')
             self.ivac2 = bool(int(stationInfo[39][0]) - 1)
+            self.atisTextRaw = stationInfo[35].encode('iso-8859-15')
             self.atisRaw = stationInfo[35].encode('iso-8859-15').split('^§')
         else:
             self.atisRaw = None
@@ -367,12 +354,20 @@ class VoiceAtis(object):
         self.rwyInformation = [None,None,None,None]
         if not self.ivac2:
             strSplit = self.atisRaw[3].split(' / ')
-            
+
             for sp in strSplit:
+                # ARR.
                 if sp[0:3] == 'ARR':
-                    arr = sp.replace('ARR RWY ','').strip().split(' ')
                     self.rwyInformation[0] = []
-                    for rwy in arr:
+                    arr = sp.replace('ARR RWY ','').strip()
+                    starts = []
+                    for ma in re.finditer('\d{2}[RLC]?',arr):
+                        starts.append(ma.start())
+                    for st in range(len(starts)):
+                        if st < len(starts)-1:
+                            rwy = arr[starts[st]:starts[st+1]]
+                        else:
+                            rwy = arr[starts[st]:]
                         curRwy = [rwy[0:2],None,None,None]
                         if 'L' in rwy:
                             curRwy[1] = 'Left'
@@ -382,11 +377,18 @@ class VoiceAtis(object):
                             curRwy[3] = 'Right'
                         self.rwyInformation[0].append(curRwy)
                 
+                # DEP.
                 elif sp[0:3] == 'DEP':
-                    # DEP.
-                    dep = strSplit[1].replace('DEP RWY ','').strip().split(' ')
                     self.rwyInformation[1] = []
-                    for rwy in dep:
+                    dep = sp.replace('DEP RWY ','').strip()
+                    starts = []
+                    for ma in re.finditer('\d{2}[RLC]?',dep):
+                        starts.append(ma.start())
+                    for st in range(len(starts)):
+                        if st < len(starts)-1:
+                            rwy = dep[starts[st]:starts[st+1]]
+                        else:
+                            rwy = dep[starts[st]:]
                         curRwy = [rwy[0:2],None,None,None]
                         if 'L' in rwy:
                             curRwy[1] = 'Left'
@@ -396,11 +398,13 @@ class VoiceAtis(object):
                             curRwy[3] = 'Right'
                         self.rwyInformation[1].append(curRwy)
                         
+                # TRL/TA
                 elif sp[0:3] == 'TRL':
                     self.rwyInformation[2] = sp.strip().replace('TRL FL','')
                     
                 elif sp[0:2] == 'TA':
                     self.rwyInformation[3] = sp.strip().replace('TA ','').replace('FT','')
+        # Ivac 2
         else:
             for ar in self.atisRaw:
                 if ar.startswith('TA'):
@@ -707,10 +711,9 @@ class VoiceAtis(object):
     def getAirportDataFile(self,apFile):
         with open(apFile) as aptInfoFile:
             for li in aptInfoFile:
-                if li.startswith('#'):
-                    continue
                 lineSplit = re.split('[,;]',li)
-                self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]),lineSplit[4].replace('\n',''))
+                if not li.startswith('#') and len(lineSplit) == 5:
+                    self.airportInfos[lineSplit[0].strip()] = (float(lineSplit[1]),float(lineSplit[2]),float(lineSplit[3]),lineSplit[4].replace('\n',''))
     
     ## Read data of airports from http://ourairports.com.
     def getAirportDataWeb(self):
@@ -749,7 +752,7 @@ class VoiceAtis(object):
             
         except:
             # If this fails, use the airports from airports.info.
-            self.logger.warning('Unable to get airport data from web. Using airports.info')
+            self.logger.warning('Unable to get airport data from web. Using airports.info. Error: {}'.format(sys.exc_info()[0]))
             self.airportInfos = {}
             collectedFromWeb = False
             try:

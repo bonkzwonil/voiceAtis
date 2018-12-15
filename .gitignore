@@ -1,10 +1,11 @@
 # compiled python files
 *.pyc
 
-# Build folders
+# Build folders and files
 *egg-info*
 /build
 /dist
+release.bat
 
 # Eclipse project files
 .project
@@ -13,6 +14,9 @@
 
 # test file
 *test.py
+
+# archive folder
+/archive
 
 # generated airport file
 airports.info

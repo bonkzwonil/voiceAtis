@@ -1,24 +1,20 @@
 # voiceAtis
-Reads an ATIS from IVAO using voice generation
+Reads an ATIS from IVAO using voice generation.
 
 ## Requirements
 * Python 2.7 - 32 bit (due to pyuipc incompatibility with Python 3 and 64 bit)
 * pyuipc
 * pyttsx
 * XPlane with XPUIPC or MFS, P3D with FSUIPC
+    * Only tested with X-Plane 11
 * Windows (Linux and Mac not tested yet)
 
 ## Installation
-* Get the latest version of atisVoice: `git clone https://github.com/Sowintuu/voiceAtis.git`
 * Get the latest python 2.7 ([Python releases](https://www.python.org/downloads/))
+* Run `pip install voiceAtis`
 * Install pyuipc
    * Download [FSUIPC SDK](http://fsuipc.simflight.com/beta/FSUIPC_SDK.zip)
    * Inside this zip-file run `UIPC_SDK_Python.zip\pyuipc-0.3.win32-py2.7.msi`
-* Get pyttsx
-   * Open a command window in the Python-Script folder
-   * Run `pip install pyttsx`
-
-An upload to pypi is on my roadmap.
 
 ## Usage
 * Start the script "voiceAtis.py"
@@ -30,12 +26,21 @@ An upload to pypi is on my roadmap.
    * There is an ATC station online at this airport (TWR, APP, GND or DEL)
    * The airport has an ATIS frequency at [ourairports.com](http://ourairports.com)
 
-## Custom airport data
+### Custom airport data
 Airport data is downloaded from [ourairports.com](http://ourairports.com). You can see these data at `airports.info` file at main directory. It may happen that this data is inaccurate or an airport is missing.
 
 In this case you can add the airport to the `airports_add.info` file. Airports in this file have priority over downloaded data.
 
-You may also inform me about wrong data preferably via the Issues tab. I will then enter the data at [ourairports.com](http://ourairports.com) to distritbute them to all users.
+You may also inform me about wrong data preferably via the Issues tab. I will then enter the data at [ourairports.com](http://ourairports.com) to distritbute them to all users. Alternatively, after login, you may correct the data on your own.
+
+### Notice for X-Plane users
+X-Plane has its own ATIS information broadcasted, often on the same (real) frequency. After tuning in the ATIS frequency you will hear the X-Plane ATIS message first and then the message provided by voiceAtis. Because X-Plane also uses the operation system text-to-speech machine like voiceAtis. The voice messages are queued and read after each other.
+
+To avoid the broadcasting of the default ATIS, I created the script `xpRemoveAtisFreq.py`. All ATC frequency are stored in the file `apt.dat`. The script will remove all ATIS frequency from this file. After execution, the default ATIS should be permanently disabled.
+
+Before removal of the frequency, the script will create a backup of the original file as `apt.dat.bak`. If you would like to hear the default ATIS again, simply delete the modified `apt.dat` file and restore the backup file.
+
+Although the script is well tested and there should not occur any side-effects, the use of this script is at your own risk.
 
 ## Bugs and issues
 * Please report bugs via the github issues tab.
@@ -47,6 +52,9 @@ You may also inform me about wrong data preferably via the Issues tab. I will th
     * No visibility directions
     * No runway condition
 * No comments of ivac 2 atis
+* X-Plane: Detection of active radio not accurate
+* Sometimes airports have more than 1 ATIS frequency (e.g. EDDF or LOWW, for departure and arrival)
+    * You might have to try all frequencies to find the one working.
 
 ## Used packages and Copyright
 ### python-metar
@@ -108,6 +116,13 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.0.7 - 15.12.2018
+* Provided the script `xpRemoveAtisFreq`
+* First upload to pypi
+* Added pyuipc msi to files
+* Fix: Bug for multiple runways for departure/arrival
+* Fix: Bug reading empty line of airports_add.info
+
 ### version 0.0.6 - 14.12.2018
 * Implemented parsing of ATIS created with ivac 2
 * Disabled warnings of python-metar
