@@ -20,6 +20,7 @@ release.bat
 
 # generated airport file
 airports.info
+airports_add.info
 
 # python-metar folder
 /python-metar
