@@ -130,6 +130,51 @@ def parseVoiceChars(string):
     
     return stringSep.strip()
 
+
+class VaLogger(object):
+ 
+    def __init__(self,logDir,**optional):
+        # Process optional input.
+        self.logFormat = optional.get('Format','%H:%M:%S')
+        self.consoleFormat = optional.get('Format','%H:%M:%S')
+        
+        self.logFormat = optional.get('LogFormat',self.logFormat)
+        self.consoleFormat = optional.get('ConsoleFormat',self.consoleFormat)
+        
+        # Process paths.
+        self.logDir = logDir
+        self.logFile = os.path.join(self.logDir,time.strftime('%y%m%d-%H%M%S.log'))
+        
+        # Init logfile.
+        with open(self.logFile,'w') as f:  # @UnusedVariable
+            pass
+        
+    
+    def log2Console(self,idChar,message):
+        print(time.strftime('{} - {} - {}'.format(self.consoleFormat,idChar,message)))
+    
+    def log2File(self,idChar,message):
+        with open(self.logFile,'a') as logFile:  # @UnusedVariable
+            logFile.write(time.strftime('{} - {} - {}\n'.format(self.consoleFormat,idChar,message)))
+        
+    def debug(self,message):
+#         self.log2Console('D', message)
+        self.log2File('D', message)
+    
+    def info(self,message):
+        self.log2Console('I', message)
+        self.log2File('I', message)
+    
+    def warning(self,message):
+        self.log2Console('W', message)
+        self.log2File('W', message)
+        
+    def error(self,message):
+        self.log2Console('E', message)
+        self.log2File('E', message)
+        sys.exit('Error at execution. Terminated.')
+
+
 class VoiceAtis(object):
     
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
@@ -192,7 +237,8 @@ class VoiceAtis(object):
         self.rootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # Init logging.
-        self.initLogging()
+#         self.initLogging()
+        self.logger = VaLogger(os.path.join(self.rootDir,'logs'))
         
         # First log message.
         self.logger.info('voiceAtis started')
