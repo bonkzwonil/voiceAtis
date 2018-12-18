@@ -119,6 +119,7 @@ See the [Credits](http://ourairports.com/about.html#credits) for a list of contr
 ### version 0.0.8 - 18.12.2018
 * Created my own custom logger class
 * Included `pyuipc.pyd` in the repository
+* Included requirements to `setup.py`
 * Small fixes
 
 ### version 0.0.7 - 15.12.2018

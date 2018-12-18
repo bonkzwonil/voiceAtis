@@ -18,6 +18,11 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Sowintuu/voiceAtis",
     packages=find_packages(),
+    install_requires=[
+        'pyttsx',
+        'metar',
+        'aviationFormula',
+        ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",
