@@ -20,6 +20,7 @@
 
 from __future__ import division
 
+# Import built-ins
 import os
 import sys
 import re
@@ -31,10 +32,11 @@ from contextlib import closing
 from math import floor
 import warnings
 
-reload(sys)  
+# Set encoding
+reload(sys)
 sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
 
-
+# Import pip packages (except failure with debug mode).
 try:
     import pyttsx
     pyttsxImported = True
@@ -50,89 +52,14 @@ except ImportError:
         debug = True
 
 from metar.Metar import Metar
+from aviationFormula.aviationFormula import gcDistanceNm
 
-
-from aviationFormula import gcDistanceNm
+# Import own packages.
 from VaLogger import VaLogger
+from voiceAtisUtil import parseVoiceInt, parseVoiceString, CHAR_TABLE
 
-
-CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
-              'D' : 'DELTA',    'E' : 'ECHO',       'F' : 'FOXTROTT',
-              'G' : 'GOLF',     'H' : 'HOTEL',      'I' : 'INDIA',
-              'J' : 'JULIETT',  'K' : 'KILO',       'L' : 'LIMA',
-              'M' : 'MIKE',     'N' : 'NOVEMBER',   'O' : 'OSCAR',
-              'P' : 'PAPA',     'Q' : 'QUEBEC',     'R' : 'ROMEO',
-              'S' : 'SIERRA',   'T' : 'TANGO',      'U' : 'UNIFORM',
-              'V' : 'VICTOR',   'W' : 'WHISKEY',    'X' : 'XRAY',
-              'Y' : 'YANKEE',   'Z' : 'ZULU'}
-
-
-
-## Sperates integer Numbers with whitespace
-# Needed for voice generation to be pronounced properly.
-# Also replaces - by 'minus'
-# Example: -250 > minus 2 5 0
-def parseVoiceInt(number):
-    if isinstance(number, float):
-        number = int(number)
-    if isinstance(number, int):
-        number = str(number)
-    
-    numberSep = ''
-    for k in number:
-        if k != '-':
-            numberSep = '{}{} '.format(numberSep,k)
-        else:
-            numberSep = '{}minus '.format(numberSep)
-    return numberSep.strip()
-
-## Sperates decimal Numbers with whitespace
-# Also replaces . or , by 'decimal'
-# Also replaces - by 'minus'
-# Example: -118.80 > minus 1 1 8 decimal 8 0
-def parseVoiceFloat(number):
-    if isinstance(number, float):
-        number = str(number)
-    
-    numberSep = ''
-    for k in number:
-        if k != '.' and k != ',' and k!= '-':
-            numberSep = '{}{} '.format(numberSep,k)
-        elif k != '-':
-            numberSep = '{}decimal '.format(numberSep)
-        else:
-            numberSep = '{}minus '.format(numberSep)
-    return numberSep.strip()
-
-## Search a string for numbers and seperate with whitespaces.
-# Using parseVoiceInt() and parseVoiceFloat().
-def parseVoiceString(string):
-    pattern = re.compile('\d+[,.]\d+')
-    match = pattern.search(string)
-    while match is not None:
-        replaceStr = parseVoiceFloat(string[match.start():match.end()])
-        string = '{}{}{}'.format(string[0:match.start()],replaceStr,string[match.end():])
-        match = pattern.search(string)
-        
-    pattern = re.compile('\d\d+')
-    match = pattern.search(string)
-    while match is not None:
-        replaceStr = parseVoiceInt(string[match.start():match.end()])
-        string = '{}{}{}'.format(string[0:match.start()],replaceStr,string[match.end():])
-        match = pattern.search(string)
-        
-    return string
-
-## Splits a string at each char and replaces them with ICAO-alphabet.
-def parseVoiceChars(string):
-        
-    stringSep = ''
-    for k in string:
-        stringSep = '{}{} '.format(stringSep,CHAR_TABLE[k])
-    
-    return stringSep.strip()
-
-
+## Main Class of VoiceAtis.
+# Run constructor to run the program.
 class VoiceAtis(object):
     
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
@@ -730,6 +657,12 @@ class VoiceAtis(object):
     
     ## Read data of airports from a given file.
     def getAirportDataFile(self,apFile):
+        # Check if file exists.
+        if not os.path.isfile(apFile):
+            self.logger.warning('No such file: {}'.format(apFile))
+            return
+        
+        # Read the file.
         with open(apFile) as aptInfoFile:
             for li in aptInfoFile:
                 lineSplit = re.split('[,;]',li)

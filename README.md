@@ -11,15 +11,12 @@ Reads an ATIS from IVAO using voice generation.
 
 ## Installation
 * Get the latest python 2.7 ([Python releases](https://www.python.org/downloads/))
+* Install the latest pywin32 release ([pywin32 releases](https://github.com/mhammond/pywin32/releases))
 * Run `pip install voiceAtis`
-* Install pyuipc
-   * Download [FSUIPC SDK](http://fsuipc.simflight.com/beta/FSUIPC_SDK.zip)
-   * Inside this zip-file run `UIPC_SDK_Python.zip\pyuipc-0.3.win32-py2.7.msi`
 
 ## Usage
-* Start the script "voiceAtis.py"
-   * If you would like to see the command output, open it from console. `python voiceAtis.py`
 * Start your sim and start a flight.
+* Start the script "voiceAtis.py" (`<Python>\Lib\site-packages\voiceAtis`)
 * Tune the ATIS frequency of the airport where you are parking.
    * Don't forget to activate receive mode of the radio (COM1 or COM2)
 * You should hear the ATIS now, if:
@@ -116,6 +113,12 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.1.2 - 18.12.2018
+* Fix: import
+
+### version 0.1.1 - 18.12.2018
+* Fix: pip requirements
+
 ### version 0.1.0 - 18.12.2018
 * Included requirements to `setup.py`
 

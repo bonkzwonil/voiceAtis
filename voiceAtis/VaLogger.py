@@ -38,7 +38,8 @@ class VaLogger(object):
     def __init__(self,*args,**optional):
         # Process paths.
         if len(args):
-            self.logFile = os.path.join(args[0],time.strftime('%y%m%d-%H%M%S.log'))
+            self.logDir = args[0]
+            self.logFile = os.path.join(self.logDir,time.strftime('%y%m%d-%H%M%S.log'))
         else:
             self.logFile = None
         
@@ -59,8 +60,13 @@ class VaLogger(object):
         
         # Init logfile.
         if self.logFile is not None:
-            with open(self.logFile,'w') as f:  # @UnusedVariable
-                pass
+            try:
+                if not os.path.isdir(self.logDir): 
+                    os.makedirs(self.logDir)
+                with open(self.logFile,'w'):
+                    os.utime(self.logFile, None)
+            except:
+                self.logFile = None
         
         # Init color.
         self._initColor()
