@@ -27,7 +27,6 @@ import time
 import urllib
 import urllib2
 import gzip
-import logging
 from contextlib import closing
 from math import floor
 import warnings
@@ -35,7 +34,7 @@ import warnings
 reload(sys)  
 sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
 
-sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
+# sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
 try:
     import pyttsx
@@ -49,9 +48,10 @@ try:
 except ImportError:
         pyuipcImported = False
         debug = True
-from metar.Metar import Metar  # @UnresolvedImport
+from metar.Metar import Metar
 
 from aviationFormula import gcDistanceNm
+from VaLogger import VaLogger
 
 
 CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
@@ -131,50 +131,6 @@ def parseVoiceChars(string):
     return stringSep.strip()
 
 
-class VaLogger(object):
- 
-    def __init__(self,logDir,**optional):
-        # Process optional input.
-        self.logFormat = optional.get('Format','%H:%M:%S')
-        self.consoleFormat = optional.get('Format','%H:%M:%S')
-        
-        self.logFormat = optional.get('LogFormat',self.logFormat)
-        self.consoleFormat = optional.get('ConsoleFormat',self.consoleFormat)
-        
-        # Process paths.
-        self.logDir = logDir
-        self.logFile = os.path.join(self.logDir,time.strftime('%y%m%d-%H%M%S.log'))
-        
-        # Init logfile.
-        with open(self.logFile,'w') as f:  # @UnusedVariable
-            pass
-        
-    
-    def log2Console(self,idChar,message):
-        print(time.strftime('{} - {} - {}'.format(self.consoleFormat,idChar,message)))
-    
-    def log2File(self,idChar,message):
-        with open(self.logFile,'a') as logFile:  # @UnusedVariable
-            logFile.write(time.strftime('{} - {} - {}\n'.format(self.consoleFormat,idChar,message)))
-        
-    def debug(self,message):
-#         self.log2Console('D', message)
-        self.log2File('D', message)
-    
-    def info(self,message):
-        self.log2Console('I', message)
-        self.log2File('I', message)
-    
-    def warning(self,message):
-        self.log2Console('W', message)
-        self.log2File('W', message)
-        
-    def error(self,message):
-        self.log2Console('E', message)
-        self.log2File('E', message)
-        sys.exit('Error at execution. Terminated.')
-
-
 class VoiceAtis(object):
     
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
@@ -228,8 +184,6 @@ class VoiceAtis(object):
     def __init__(self):
         #TODO: Test switching of frequency properly.
         #TODO: Remove the debug code when tested properly.
-        #TODO: Create installation package.
-        #TODO: Implement my own logger.
         #TODO: Improve logged messages.
         #TODO: Create GUI.
         
@@ -237,20 +191,25 @@ class VoiceAtis(object):
         self.rootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # Init logging.
-#         self.initLogging()
         self.logger = VaLogger(os.path.join(self.rootDir,'logs'))
         
         # First log message.
         self.logger.info('voiceAtis started')
         
         # Establish pyuipc connection
-        if pyuipcImported:
-            self.pyuipcConnection = pyuipc.open(0)
-            self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
-            self.logger.info('FSUIPC connection established.')
-        else:
-            self.pyuipcConnection = None
-            self.logger.warning('Using voiceAtis without FSUIPC.')
+        while True:
+            try:
+                self.pyuipcConnection = pyuipc.open(0)
+                self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
+                self.logger.info('FSUIPC connection established.')
+                break
+            except NameError:
+                self.pyuipcConnection = None
+                self.logger.warning('Using voiceAtis without FSUIPC.')
+                break
+            except:
+                self.logger.warning('No Sim detected. Start your Sim first. Retrying in 20 seconds.')
+                time.sleep(20)
         
         
         # Read file with airport frequencies and coordinates.
@@ -260,6 +219,7 @@ class VoiceAtis(object):
         #TODO: Remove for release.
         if debug:
             self.logger.info('Debug mode on.')
+            self.logger.setLevel(ConsoleLevel='debug')
         
         # Infinite loop.
         try:
@@ -843,29 +803,6 @@ class VoiceAtis(object):
         
         return metarText[metarStart:metarEnd]
     
-    
-    ## Initializes the logger.
-    def initLogging(self):
-        # Init logger object
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
-        
-        # Specify formatter.
-        formatter = logging.Formatter('%(asctime)s - %(levelname).1s - %(message)s','%H:%M:%S')
-        
-        # Specify console output.
-        ch = logging.StreamHandler()
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
-        
-        # Specify logfile stream.
-        logPath = os.path.join(self.rootDir,'logs')
-        if not os.path.isdir(logPath):
-            os.makedirs(logPath)
-        fh = logging.FileHandler(os.path.join(logPath,time.strftime('%y%m%d-%H%M%S.log')))
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
-        
     
 if __name__ == '__main__':
     voiceAtis = VoiceAtis()
