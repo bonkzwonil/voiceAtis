@@ -27,7 +27,6 @@ import time
 import urllib
 import urllib2
 import gzip
-import logging
 from contextlib import closing
 from math import floor
 import warnings
@@ -35,7 +34,7 @@ import warnings
 reload(sys)  
 sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
 
-sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
+# sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
 try:
     import pyttsx
@@ -49,9 +48,10 @@ try:
 except ImportError:
         pyuipcImported = False
         debug = True
-from metar.Metar import Metar  # @UnresolvedImport
+from metar.Metar import Metar
 
 from aviationFormula import gcDistanceNm
+from VaLogger import VaLogger
 
 
 CHAR_TABLE = {'A' : 'APLHA',    'B' : 'BRAVO',      'C' : 'CHARLIE',
@@ -130,6 +130,7 @@ def parseVoiceChars(string):
     
     return stringSep.strip()
 
+
 class VoiceAtis(object):
     
     STATION_SUFFIXES = ['TWR','APP','GND','DEL','DEP']
@@ -180,48 +181,47 @@ class VoiceAtis(object):
     
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
-    def __init__(self):
+    def __init__(self,**optional):
         #TODO: Test switching of frequency properly.
         #TODO: Remove the debug code when tested properly.
-        #TODO: Create installation package.
-        #TODO: Implement my own logger.
         #TODO: Improve logged messages.
         #TODO: Create GUI.
+        
+        # Process optional arguments.
+        self.debug = optional.get('Debug',debug)
         
         # Get file path.
         self.rootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # Init logging.
-        self.initLogging()
+        self.logger = VaLogger(os.path.join(self.rootDir,'logs'))
         
         # First log message.
         self.logger.info('voiceAtis started')
         
         # Establish pyuipc connection
-        if pyuipcImported:
-            pyuipcOpen = False
-            while not pyuipcOpen:
-                try:
-                    self.pyuipcConnection = pyuipc.open(0)
-                    pyuipcOpen = True
-                except pyuipc.FSUIPCException:
-                    self.logger.warning('FSUIPC: No simulator detected. Start you simulator first!')
-                    time.sleep(10)
-                    
-            self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
-            self.logger.info('FSUIPC connection established.')
-        else:
-            self.pyuipcConnection = None
-            self.logger.warning('Using voiceAtis without FSUIPC.')
-        
+        while True:
+            try:
+                self.pyuipcConnection = pyuipc.open(0)
+                self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
+                self.logger.info('FSUIPC connection established.')
+                break
+            except NameError:
+                self.pyuipcConnection = None
+                self.logger.warning('Using voiceAtis without FSUIPC.')
+                break
+            except:
+                self.logger.warning('FSUIPC: No simulator detected. Start you simulator first! Retrying in 20 seconds.')
+                time.sleep(20)
         
         # Read file with airport frequencies and coordinates.
         self.getAirportData()
         
         # Show debug Info
         #TODO: Remove for release.
-        if debug:
+        if self.debug:
             self.logger.info('Debug mode on.')
+            self.logger.setLevel(ConsoleLevel='debug')
         
         # Infinite loop.
         try:
@@ -229,8 +229,6 @@ class VoiceAtis(object):
                 
                 # Get ATIS frequency and associated airport.
                 self.getPyuipcData()
-                self.logger.debug('COM 1: {}, COM 2: {}'.format(self.com1frequency,self.com2frequency))
-                self.logger.debug('COM 1 active: {}, COM 2 active: {}'.format(self.com1active,self.com2active))
                 
                 # Get best suitable Airport.
                 self.getAirport()
@@ -244,7 +242,7 @@ class VoiceAtis(object):
                     self.logger.info('Airport: {}.'.format(self.airport))
                 
                 # Get whazzup file
-                if not debug:
+                if not self.debug:
                     self.getWhazzupText()
                 else:
                     self.getWhazzupTextDebug()
@@ -636,6 +634,7 @@ class VoiceAtis(object):
             self.engine.say(self.atisVoice)
             self.logger.info('Start reading.')
             self.engine.runAndWait()
+            self.logger.info('Reading finished.')
             self.engine = None
             
         else:
@@ -695,7 +694,19 @@ class VoiceAtis(object):
             self.com2active = True
             self.lat = self.LAT_DEBUG
             self.lon = self.LON_DEBUG
-
+        
+        # Logging.
+        if self.com1active:
+            com1activeStr = 'active'
+        else:
+            com1activeStr = 'inactive'
+        if self.com2active:
+            com2activeStr = 'active'
+        else:
+            com2activeStr = 'inactive'
+        
+        self.logger.debug('COM 1: {} ({}), COM 2: {} ({})'.format(self.com1frequency,com1activeStr,self.com2frequency,com2activeStr))
+#         self.logger.debug('COM 1 active: {}, COM 2 active: {}'.format(self.com1active,self.com2active))
     
     ## Determine if there is an airport aplicable for ATIS reading.
     def getAirport(self):
@@ -805,29 +816,6 @@ class VoiceAtis(object):
         
         return metarText[metarStart:metarEnd]
     
-    
-    ## Initializes the logger.
-    def initLogging(self):
-        # Init logger object
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
-        
-        # Specify formatter.
-        formatter = logging.Formatter('%(asctime)s - %(levelname).1s - %(message)s','%H:%M:%S')
-        
-        # Specify console output.
-        ch = logging.StreamHandler()
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
-        
-        # Specify logfile stream.
-        logPath = os.path.join(self.rootDir,'logs')
-        if not os.path.isdir(logPath):
-            os.makedirs(logPath)
-        fh = logging.FileHandler(os.path.join(logPath,time.strftime('%y%m%d-%H%M%S.log')))
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
-        
     
 if __name__ == '__main__':
     voiceAtis = VoiceAtis()
