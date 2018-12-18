@@ -3,8 +3,7 @@ Reads an ATIS from IVAO using voice generation.
 
 ## Requirements
 * Python 2.7 - 32 bit (due to pyuipc incompatibility with Python 3 and 64 bit)
-* pyuipc
-* pyttsx
+* pywin32
 * XPlane with XPUIPC or MFS, P3D with FSUIPC
     * Only tested with X-Plane 11
 * Windows (Linux and Mac not tested yet)
@@ -12,6 +11,8 @@ Reads an ATIS from IVAO using voice generation.
 ## Installation
 * Get the latest python 2.7 ([Python releases](https://www.python.org/downloads/))
 * Install the latest pywin32 release ([pywin32 releases](https://github.com/mhammond/pywin32/releases))
+    * filename: `pywin32-xxx.win32-py2.7.exe`
+    * Install with the installer, not using pip!
 * Run `pip install voiceAtis`
 
 ## Usage
@@ -22,6 +23,7 @@ Reads an ATIS from IVAO using voice generation.
 * You should hear the ATIS now, if:
    * There is an ATC station online at this airport (TWR, APP, GND or DEL)
    * The airport has an ATIS frequency at [ourairports.com](http://ourairports.com)
+* If there is an frequency, but no station only, voiceAtis will read the current METAR only.
 
 ### Custom airport data
 Airport data is downloaded from [ourairports.com](http://ourairports.com). You can see these data at `airports.info` file at main directory. It may happen that this data is inaccurate or an airport is missing.
@@ -113,6 +115,9 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.1.3 - 18.12.2018
+* Fix: paths when running from python folder
+
 ### version 0.1.2 - 18.12.2018
 * Fix: import
 
