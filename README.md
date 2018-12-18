@@ -116,6 +116,11 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.0.8 - 18.12.2018
+* Created my own custom logger class
+* Included `pyuipc.pyd` in the repository
+* Small fixes
+
 ### version 0.0.7 - 15.12.2018
 * Provided the script `xpRemoveAtisFreq`
 * First upload to pypi

@@ -34,13 +34,13 @@ import warnings
 reload(sys)  
 sys.setdefaultencoding('iso-8859-15')  # @UndefinedVariable
 
-# sys.path.insert(0,os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'python-metar'))
 
 try:
     import pyttsx
     pyttsxImported = True
 except ImportError:
     pyttsxImported = False
+
 try:
     import pyuipc
     pyuipcImported = True
@@ -48,7 +48,9 @@ try:
 except ImportError:
         pyuipcImported = False
         debug = True
+
 from metar.Metar import Metar
+
 
 from aviationFormula import gcDistanceNm
 from VaLogger import VaLogger
