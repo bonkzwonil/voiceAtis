@@ -199,7 +199,15 @@ class VoiceAtis(object):
         
         # Establish pyuipc connection
         if pyuipcImported:
-            self.pyuipcConnection = pyuipc.open(0)
+            pyuipcOpen = False
+            while not pyuipcOpen:
+                try:
+                    self.pyuipcConnection = pyuipc.open(0)
+                    pyuipcOpen = True
+                except pyuipc.FSUIPCException:
+                    self.logger.warning('FSUIPC: No simulator detected. Start you simulator first!')
+                    time.sleep(10)
+                    
             self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
             self.logger.info('FSUIPC connection established.')
         else:
