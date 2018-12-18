@@ -116,10 +116,12 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.1.0 - 18.12.2018
+* Included requirements to `setup.py`
+
 ### version 0.0.8 - 18.12.2018
 * Created my own custom logger class
 * Included `pyuipc.pyd` in the repository
-* Included requirements to `setup.py`
 * Small fixes
 
 ### version 0.0.7 - 15.12.2018

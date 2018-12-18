@@ -24,7 +24,7 @@ setup(
         'aviationFormula',
         ],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Environment :: Console",
         "Programming Language :: Python :: 2 :: Only",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
