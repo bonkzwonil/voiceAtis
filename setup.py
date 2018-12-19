@@ -13,17 +13,23 @@ setup(
     version=version,
     author="Oliver Clemens",
     author_email="sowintuu@aol.com",
+    
     description="Reads an ATIS from IVAO using voice generation.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Sowintuu/voiceAtis",
+    
     packages=find_packages(),
+    package_data={'voiceAtis': ['*.pyc']},
+#     data_files=[('voiceAtis', ['*.pyc'])],
     include_package_data=True,
+    
     install_requires=[
         'pyttsx',
         'metar',
         'aviationFormula',
         ],
+    
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
