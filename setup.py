@@ -20,8 +20,8 @@ setup(
     url="https://github.com/Sowintuu/voiceAtis",
     
     packages=find_packages(),
-    package_data={'voiceAtis': ['*.pyc']},
-#     data_files=[('voiceAtis', ['*.pyc'])],
+    package_data={'voiceAtis': ['pyuipc.pyd']},
+#     data_files=[('voiceAtis/bin', ['pyuipc.pyd'])],
     include_package_data=True,
     
     install_requires=[

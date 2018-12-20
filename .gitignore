@@ -5,7 +5,7 @@
 *egg-info*
 /build
 /dist
-release.bat
+release*.bat
 
 # Eclipse project files
 .project
