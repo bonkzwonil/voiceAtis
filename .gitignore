@@ -6,6 +6,8 @@
 /build
 /dist
 release*.bat
+uninstall.bat
+install*.bat
 
 # Eclipse project files
 .project

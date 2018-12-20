@@ -115,15 +115,10 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
-### version 0.1.7 - 20.12.2018
-* 
-### version 0.1.3 - 18.12.2018
+### version 0.1.4 - 20.12.2018
+* Fix: setup.py
 * Fix: paths when running from python folder
-
-### version 0.1.2 - 18.12.2018
 * Fix: import
-
-### version 0.1.1 - 18.12.2018
 * Fix: pip requirements
 
 ### version 0.1.0 - 18.12.2018
