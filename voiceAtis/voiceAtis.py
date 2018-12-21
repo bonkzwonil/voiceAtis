@@ -53,6 +53,7 @@ except ImportError:
 
 from metar.Metar import Metar
 from aviationFormula.aviationFormula import gcDistanceNm
+# from aviationFormula import gcDistanceNm
 
 # Import own packages.
 from VaLogger import VaLogger
@@ -224,7 +225,7 @@ class VoiceAtis(object):
                 self.parseVoiceComment()
                 
                 # Compose complete atis voice string.
-                self.atisVoice = '{} {} {} {} Information {}, out.'.format(self.informationVoice,self.metarVoice,self.rwyVoice,self.commentVoice,self.informationIdentifier)
+                self.atisVoice = '{} {} {} {} Information {}, out.'.format(self.informationVoice,self.rwyVoice,self.commentVoice,self.metarVoice,self.informationIdentifier)
                 
                 # Read the string.
                 self.readVoice()
@@ -380,7 +381,7 @@ class VoiceAtis(object):
         # Time
         hours = parseVoiceInt('{:02d}'.format(self.metar._hour))
         minutes = parseVoiceInt('{:02d}'.format(self.metar._min))
-        self.metarVoice = '{} time {} {} zulu'.format(self.metarVoice,hours,minutes)
+        self.metarVoice = '{} time {} {}'.format(self.metarVoice,hours,minutes)
         
         # Wind
         if self.metar.wind_speed._value != 0:
@@ -477,7 +478,7 @@ class VoiceAtis(object):
             endInd = timeMatch.end()- 1
             timeStr = parseVoiceInt(self.atisRaw[1][startInd:endInd])
             
-            self.informationVoice = '{} {} Zulu.'.format(self.atisRaw[1][0:startInd-1],timeStr)
+            self.informationVoice = '{} {}.'.format(self.atisRaw[1][0:startInd-1],timeStr)
         
         else:
             information = self.atisRaw[1].split(' ')
@@ -485,7 +486,7 @@ class VoiceAtis(object):
             airport = self.airportInfos[airport][3]
             time = parseVoiceInt(information[4][0:4])
             
-            self.informationVoice = '{} Information {} recorded at {} Zulu.'.format(airport,self.informationIdentifier,time)
+            self.informationVoice = '{} Information {} recorded at {}.'.format(airport,self.informationIdentifier,time)
     
     
     ## Generate a string of the runway information for voice generation.
