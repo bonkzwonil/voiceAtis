@@ -115,6 +115,11 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.1.5 - 21.12.2018
+* Changes for improved realism
+    * Changed order (metar to the end)
+    * Removed "zulu" from time
+
 ### version 0.1.4 - 20.12.2018
 * Fix: setup.py
 * Fix: paths when running from python folder
