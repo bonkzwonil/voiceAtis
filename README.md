@@ -41,6 +41,16 @@ Before removal of the frequency, the script will create a backup of the original
 
 Although the script is well tested and there should not occur any side-effects, the use of this script is at your own risk.
 
+### Notice for FSX users
+Also FSX has its own ATIS information broadcasted on the same frequency. It uses its own voice engine thus doesn't interfer with voiceAtis. Nevertheless the spoken messages and the displayed text may be disturbing. To disable them uncheck the following options.
+* Options > General > All ATC options
+* Options > Sounds > Voice
+
+### Notice for P3D users
+I didn't test voiceAtis with P3D as I don't own this simulator, but it should work with the appropriate version of FSUIPC. If you are a P3D user, please tell me if it worked. If it didn't work, open an issue so that I can fix it.
+
+Also instructions to disable the standard ATIS of the simulator are highly appreciated!
+
 ## Bugs and issues
 * Please report bugs via the github issues tab.
     * It is usefull to attach the logfile from "root/logs".
