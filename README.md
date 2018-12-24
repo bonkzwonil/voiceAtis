@@ -6,7 +6,8 @@ Reads an ATIS from IVAO using voice generation.
 * pywin32
 * XPlane with [XPUIPC](http://fsacars.com/downloads/xpuipc/) or MFS, P3D with [FSUIPC](http://www.schiratti.com/dowson.html)
     * P3D not tested yet
-* Windows (Linux and Mac not tested yet)
+* Windows
+    * XPUIPC currently not working with Linux and Mac
 
 ## Installation
 * Get the latest python 2.7 ([Python releases](https://www.python.org/downloads/))
@@ -188,5 +189,5 @@ See the [Credits](http://ourairports.com/about.html#credits) for a list of contr
 * Voice not tested
 
 ## ROADMAP
-* Upload to pypi
 * Random start
+* GUI for settings and display
