@@ -65,9 +65,6 @@ Also instructions to disable the standard ATIS of the simulator are highly appre
 * Sometimes airports have more than 1 ATIS frequency (e.g. EDDF or LOWW, for departure and arrival)
     * You might have to try all frequencies to find the one working.
 
-### Known Bugs
-* Detection if frequency is changed or COM deactivated while reading fails on some machines.
-
 ## Used packages and Copyright
 ### python-metar
 Used to parse the metar contained in the ATIS.
@@ -128,6 +125,10 @@ Behind the fun and features, OurAirports exists primarily as a public good. When
 See the [Credits](http://ourairports.com/about.html#credits) for a list of contributers.
 
 ## Changelog
+### version 0.1.6 - 24.12.2018
+* Fix: Using COM1 frequency
+* Tested with FSX
+
 ### version 0.1.5 - 21.12.2018
 * Changes for improved realism
     * Changed order (metar to the end)

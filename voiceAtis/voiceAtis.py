@@ -112,7 +112,6 @@ class VoiceAtis(object):
     ## Setup the VoiceAtis object.
     # Also starts the voice generation loop.
     def __init__(self,**optional):
-        #TODO: Test switching of frequency properly.
         #TODO: Remove the debug code when tested properly.
         #TODO: Improve logged messages.
         #TODO: Create GUI.
@@ -124,7 +123,7 @@ class VoiceAtis(object):
         self.rootDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # Init logging.
-        self.logger = VaLogger(os.path.join(self.rootDir,'logs'))
+        self.logger = VaLogger(os.path.join(self.rootDir,'voiceAtis','logs'))
         
         # First log message.
         self.logger.info('voiceAtis started')
@@ -145,7 +144,9 @@ class VoiceAtis(object):
                 time.sleep(20)
         
         # Read file with airport frequencies and coordinates.
+        self.logger.info('Downloading airport data. This may take some time.')
         self.getAirportData()
+        self.logger.info('Finished downloading airport data.')
         
         # Show debug Info
         #TODO: Remove for release.
@@ -535,14 +536,13 @@ class VoiceAtis(object):
     ## Reads the atis string using voice generation.
     def readVoice(self):
         # Init currently Reading with None.
-        self.currentlyReading = [None,None]
+        self.currentlyReading = None
         
         self.logger.debug('Voice Text is: {}'.format(self.atisVoice))
         
         if pyttsxImported:
             # Set properties currently reading
-            self.currentlyReading[0] = self.airport
-            self.currentlyReading[1] = self.com2frequency
+            self.currentlyReading = self.airport
             
             # Init voice engine.
             self.engine = pyttsx.init()
@@ -575,14 +575,11 @@ class VoiceAtis(object):
     # Stops reading if frequency change/com deactivation/out of range.
     def onWord(self, name, location, length):  # @UnusedVariable
         self.getPyuipcData()
+        self.getAirport()
         
-        com1Reading = self.com1frequency == self.currentlyReading[1] and self.com1active
-        com2Reading = self.com2frequency == self.currentlyReading[1] and self.com2active
-        #TODO: Implement stop if too far away.
-        
-        if not com1Reading and not com2Reading:
+        if self.airport != self.currentlyReading:
             self.engine.stop()
-            self.currentlyReading = [None,None]
+            self.currentlyReading = None
     
     
     ## Reads current frequency and COM status.

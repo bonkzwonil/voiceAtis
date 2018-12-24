@@ -28,7 +28,7 @@ airports_add.info
 /python-metar
 
 # log folder
-/logs
+*logs/
 
 # Files loaded from IVAO
 *whazzup.txt.gz
