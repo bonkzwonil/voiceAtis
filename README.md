@@ -4,8 +4,8 @@ Reads an ATIS from IVAO using voice generation.
 ## Requirements
 * Python 2.7 - 32 bit (due to pyuipc incompatibility with Python 3 and 64 bit)
 * pywin32
-* XPlane with XPUIPC or MFS, P3D with FSUIPC
-    * Only tested with X-Plane 11
+* XPlane with [XPUIPC](http://fsacars.com/downloads/xpuipc/) or MFS, P3D with [FSUIPC](http://www.schiratti.com/dowson.html)
+    * P3D not tested yet
 * Windows (Linux and Mac not tested yet)
 
 ## Installation
@@ -64,6 +64,9 @@ Also instructions to disable the standard ATIS of the simulator are highly appre
 * X-Plane: Detection of active radio not accurate
 * Sometimes airports have more than 1 ATIS frequency (e.g. EDDF or LOWW, for departure and arrival)
     * You might have to try all frequencies to find the one working.
+
+### Known Bugs
+* Detection if frequency is changed or COM deactivated while reading fails on some machines.
 
 ## Used packages and Copyright
 ### python-metar
