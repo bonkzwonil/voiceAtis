@@ -110,7 +110,8 @@ class VoiceAtis(object):
     WHAZZUP_TEXT_DEBUG = r'H:\My Documents\Sonstiges\voiceAtis\whazzup_1.txt'
     
     ## Setup the VoiceAtis object.
-    # Also starts the voice generation loop.
+    # Inits logger.
+    # Downloads airport data.
     def __init__(self,**optional):
         #TODO: Remove the debug code when tested properly.
         #TODO: Improve logged messages.
@@ -128,21 +129,6 @@ class VoiceAtis(object):
         # First log message.
         self.logger.info('voiceAtis started')
         
-        # Establish pyuipc connection
-        while True:
-            try:
-                self.pyuipcConnection = pyuipc.open(0)
-                self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
-                self.logger.info('FSUIPC connection established.')
-                break
-            except NameError:
-                self.pyuipcConnection = None
-                self.logger.warning('Using voiceAtis without FSUIPC.')
-                break
-            except:
-                self.logger.warning('FSUIPC: No simulator detected. Start you simulator first! Retrying in 20 seconds.')
-                time.sleep(20)
-        
         # Read file with airport frequencies and coordinates.
         self.logger.info('Downloading airport data. This may take some time.')
         self.getAirportData()
@@ -154,84 +140,41 @@ class VoiceAtis(object):
             self.logger.info('Debug mode on.')
             self.logger.setLevel(ConsoleLevel='debug')
         
+    ## Establishs pyuipc connection.
+    # Return 'True' on success or if pyuipc not installed.
+    # Return 'False' on fail.
+    def connectPyuipc(self):
+        try:
+            self.pyuipcConnection = pyuipc.open(0)
+            self.pyuipcOffsets = pyuipc.prepare_data(self.OFFSETS)
+            self.logger.info('FSUIPC connection established.')
+            return True
+        except NameError:
+            self.pyuipcConnection = None
+            self.logger.warning('Error using PYUIPC, running voiceAtis without it.')
+            return True
+        except:
+            self.logger.warning('FSUIPC: No simulator detected. Start you simulator first!')
+            return False
+    
+        
+    ## Runs an infinite loop.
+    # i.E. for use without GUI.
+    def runLoop(self):
+        
+        # Establish pyuipc connection
+        result = False
+        while not result:
+            result = self.connectPyuipc()
+            if not result:
+                self.logger.info('Retrying in 20 seconds.')
+                time.sleep(20)
+        
         # Infinite loop.
         try:
             while True:
-                
-                # Get ATIS frequency and associated airport.
-                self.getPyuipcData()
-                
-                # Get best suitable Airport.
-                self.getAirport()
-                
-                # Handle if no airport found.
-                if self.airport is None:
-                    self.logger.info('No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME))
-                    time.sleep(self.SLEEP_TIME)
-                    continue
-                else:
-                    self.logger.info('Airport: {}.'.format(self.airport))
-                
-                # Get whazzup file
-                if not self.debug:
-                    self.getWhazzupText()
-                else:
-                    self.getWhazzupTextDebug()
-                
-                # Read whazzup text and get a station.
-                self.parseWhazzupText()
-                
-                # Check if station online.
-                if self.atisRaw is not None:
-                    self.logger.info('Station found, decoding Atis.')
-                else:
-                    # Actions, if no station online.
-                    self.logger.info('No station online, using metar only.')
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        self.metar = Metar(self.getAirportMetar(),strict=False)
-                    
-                    self.parseVoiceMetar()
-                    
-                    # Parse atis voice with metar only.
-                    self.atisVoice = '{}, {}.'.format(self.airportInfos[self.airport][3],self.metarVoice)
-                    
-                    # Read the metar.
-                    self.readVoice()
-                    
-                    time.sleep(self.SLEEP_TIME)
-                    continue
-                
-                # Parse ATIS.
-                # Information.
-                self.getInfoIdentifier()
-                self.parseVoiceInformation()
-                
-                # Metar.
-                if not self.ivac2:
-                    self.parseMetar(self.atisRaw[2].strip())
-                else:
-                    for ar in self.atisRaw:
-                        if ar.startswith('METAR'):
-                            self.parseMetar(ar.replace('METAR ','').strip())
-                            break
-                
-                self.parseVoiceMetar()
-                
-                # Runways / TRL / TA
-                self.parseRawRwy()
-                self.parseVoiceRwy()
-                
-                # comment.
-                self.parseVoiceComment()
-                
-                # Compose complete atis voice string.
-                self.atisVoice = '{} {} {} {} Information {}, out.'.format(self.informationVoice,self.rwyVoice,self.commentVoice,self.metarVoice,self.informationIdentifier)
-                
-                # Read the string.
-                self.readVoice()
-                
-                pass
+                timeSleep = self.loopRun()
+                time.sleep(timeSleep)
                 
         except KeyboardInterrupt:
             # Actions at Keyboard Interrupt.
@@ -240,6 +183,83 @@ class VoiceAtis(object):
                 self.pyuipc.close()
             
     
+    ## One cyle of a loop.
+    # Returns the requested sleep time.
+    def loopRun(self):
+        
+        # Get sim data.
+        self.getPyuipcData()
+        
+        # Get best suitable Airport.
+        self.getAirport()
+        
+        # Handle if no airport found.
+        if self.airport is None:
+            self.logger.info('No airport found, sleeping for {} seconds...'.format(self.SLEEP_TIME))
+            return self.SLEEP_TIME
+        else:
+            self.logger.info('Airport: {}.'.format(self.airport))
+        
+        # Get whazzup file
+        if not self.debug:
+            self.getWhazzupText()
+        else:
+            self.getWhazzupTextDebug()
+        
+        # Read whazzup text and get a station.
+        self.parseWhazzupText()
+        
+        # Check if station online.
+        if self.atisRaw is not None:
+            self.logger.info('Station found, decoding Atis.')
+        else:
+            # Actions, if no station online.
+            self.logger.info('No station online, using metar only.')
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                self.metar = Metar(self.getAirportMetar(),strict=False)
+            
+            self.parseVoiceMetar()
+            
+            # Parse atis voice with metar only.
+            self.atisVoice = '{}, {}.'.format(self.airportInfos[self.airport][3],self.metarVoice)
+            
+            # Read the metar.
+            self.readVoice()
+            
+            return self.SLEEP_TIME
+        
+        # Parse ATIS.
+        # Information.
+        self.getInfoIdentifier()
+        self.parseVoiceInformation()
+        
+        # Metar.
+        if not self.ivac2:
+            self.parseMetar(self.atisRaw[2].strip())
+        else:
+            for ar in self.atisRaw:
+                if ar.startswith('METAR'):
+                    self.parseMetar(ar.replace('METAR ','').strip())
+                    break
+        
+        self.parseVoiceMetar()
+        
+        # Runways / TRL / TA
+        self.parseRawRwy()
+        self.parseVoiceRwy()
+        
+        # comment.
+        self.parseVoiceComment()
+        
+        # Compose complete atis voice string.
+        self.atisVoice = '{} {} {} {} Information {}, out.'.format(self.informationVoice,self.rwyVoice,self.commentVoice,self.metarVoice,self.informationIdentifier)
+        
+        # Read the string.
+        self.readVoice()
+        
+        # After successful reading.
+        return 0
     
     ## Downloads and reads the whazzup from IVAO 
     def getWhazzupText(self):
@@ -587,7 +607,7 @@ class VoiceAtis(object):
         
         if pyuipcImported:
             results = pyuipc.read(self.pyuipcOffsets)
-        
+            
             # frequency
             hexCode = hex(results[0])[2:]
             self.com1frequency = float('1{}.{}'.format(hexCode[0:2],hexCode[2:]))
@@ -752,4 +772,5 @@ class VoiceAtis(object):
     
 if __name__ == '__main__':
     voiceAtis = VoiceAtis()
+    voiceAtis.runLoop()
     pass
